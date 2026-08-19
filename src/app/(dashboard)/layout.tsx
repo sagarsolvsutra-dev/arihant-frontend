@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { PageSkeleton } from "@/components/ui/PageSkeleton";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -14,8 +13,19 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<any>(() => {
+    if (typeof window !== "undefined") {
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        try {
+          return JSON.parse(userData);
+        } catch {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
 
   useEffect(() => {
     checkAuth();
@@ -45,21 +55,17 @@ export default function DashboardLayout({
         router.push("/login");
       }
     } catch (err) {
-      // Use cached user data if backend not available
-      const parsed = JSON.parse(userData);
-      setUser(parsed);
-    } finally {
-      setIsLoading(false);
+      // Keep using cached user
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#f8f9fa] pt-16">
-        <PageSkeleton />
-      </div>
-    );
-  }
+  // if (isLoading) {
+  //   return (
+  //     <div className="min-h-screen bg-[#f8f9fa] pt-16">
+  //       <PageSkeleton />
+  //     </div>
+  //   );
+  // }
 
   if (!user) {
     return null;
