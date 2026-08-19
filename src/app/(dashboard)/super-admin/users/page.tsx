@@ -402,6 +402,7 @@ export default function UsersPage() {
         }}
         title="Add New User"
         size="md"
+        overflowVisible
       >
         <form onSubmit={handleAddAdmin} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
