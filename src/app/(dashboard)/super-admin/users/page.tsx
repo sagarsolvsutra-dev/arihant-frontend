@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/Input";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { Select } from "@/components/ui/Select";
 import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
@@ -273,13 +274,11 @@ export default function UsersPage() {
           ))}
         </div>
 
-        <div className="flex-1 min-w-[240px] max-w-md">
-          <Input
-            placeholder="Search users by name, email, phone..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+        <SearchInput
+          placeholder="Search users by name, email, phone..."
+          value={searchQuery}
+          onChange={(val) => setSearchQuery(val)}
+        />
 
         <div className="text-xs text-gray-500">
           {filteredUsers.length} user{filteredUsers.length !== 1 ? "s" : ""}

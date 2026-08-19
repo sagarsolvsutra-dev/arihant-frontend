@@ -5,6 +5,7 @@ import { Plus, Search, AlertCircle, RefreshCw } from "lucide-react";
 import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { Table } from "@/components/ui/Table";
 import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
@@ -195,13 +196,10 @@ export default function SupplierGroupsPage() {
 
       {/* Search Input */}
       <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl border border-gray-100 shadow-xs">
-        <Search className="h-5 w-5 text-gray-400 shrink-0" />
-        <input
-          type="text"
+        <SearchInput
           placeholder="Search by group name..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full text-sm text-gray-900 placeholder-gray-400 bg-transparent border-none outline-none focus:ring-0"
+          onChange={(val) => setSearchQuery(val)}
         />
       </div>
 

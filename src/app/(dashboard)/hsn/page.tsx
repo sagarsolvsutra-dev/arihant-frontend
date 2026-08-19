@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { Select } from "@/components/ui/Select";
 import { Table } from "@/components/ui/Table";
 import { Dialog } from "@/components/ui/Dialog";
@@ -264,15 +265,10 @@ export default function HsnPage() {
 
         <div className="flex items-center gap-3">
           <div className="relative w-64">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </span>
-            <input
-              type="text"
+            <SearchInput
               placeholder="Search HSN code or description..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-black focus:ring-1 focus:ring-black placeholder-gray-400"
+              onChange={(val) => setSearchQuery(val)}
             />
           </div>
           <Button

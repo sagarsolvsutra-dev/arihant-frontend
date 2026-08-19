@@ -26,6 +26,7 @@ import { Select } from "@/components/ui/Select";
 import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { Button } from "@/components/ui/Button";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 
@@ -408,13 +409,11 @@ export default function CompaniesPage() {
       {/* Search */}
       {companies.length > 0 && (
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="max-w-md flex-1 min-w-[240px]">
-            <Input
-              placeholder="Search companies by name, code, email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+          <SearchInput
+            placeholder="Search companies by name, code, email..."
+            value={searchQuery}
+            onChange={(val) => setSearchQuery(val)}
+          />
         </div>
       )}
 
