@@ -22,6 +22,7 @@ import { Select } from "@/components/ui/Select";
 import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
+import { Table } from "@/components/ui/Table";
 
 
 import { companyService } from "@/services/companyService";
@@ -219,6 +220,121 @@ export default function UsersPage() {
     return "Staff";
   };
 
+  const columns = [
+    {
+      key: "user",
+      header: "User",
+      align: "left" as const,
+      render: (u: User, index: number) => {
+        const isCurrentUser = user?._id === u._id;
+        return (
+          <div className="flex items-center gap-3">
+            <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 shrink-0">
+              {index + 1}
+            </div>
+            <div className="w-9 h-9 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-bold shrink-0">
+              {u.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div className="font-bold text-sm text-gray-900">
+                {u.name}
+                {isCurrentUser && (
+                  <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">
+                    You
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] text-gray-500 mt-0.5">
+                Last login:{" "}
+                {u.lastLogin
+                  ? new Date(u.lastLogin).toLocaleDateString()
+                  : "Never"}
+              </div>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "contact",
+      header: "Contact",
+      align: "left" as const,
+      render: (u: User) => (
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5 text-sm text-gray-850 font-medium">
+            <Mail className="h-3 w-3 text-gray-400" />
+            {u.email}
+          </div>
+          {u.phone && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+              <Phone className="h-3 w-3 text-gray-400" />
+              {u.phone}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "role",
+      header: "Role",
+      align: "left" as const,
+      render: (u: User) => (
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border ${getRoleBadgeClass(u.role)}`}
+        >
+          {getRoleLabel(u.role)}
+        </span>
+      ),
+    },
+    {
+      key: "company",
+      header: "Company",
+      align: "left" as const,
+      render: (u: User) => {
+        const companyName = typeof u.companyId === "object" ? u.companyId?.name : null;
+        return companyName ? (
+          <div className="flex items-center gap-1.5 text-sm text-gray-800 font-medium">
+            <Building2 className="h-3 w-3 text-gray-400" />
+            {companyName}
+          </div>
+        ) : (
+          <span className="text-xs text-gray-400">System</span>
+        );
+      },
+    },
+    {
+      key: "status",
+      header: "Status",
+      align: "left" as const,
+      render: (u: User) => (
+        <span className="badge-outline">
+          {u.isActive ? "Active" : "Inactive"}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      align: "right" as const,
+      render: (u: User) => {
+        const isCurrentUser = user?._id === u._id;
+        return (
+          <div className="flex justify-end">
+            {!isCurrentUser && (
+              <button
+                onClick={() => setConfirmDelete(u)}
+                className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                title="Delete user"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
 
 
   return (
@@ -284,112 +400,11 @@ export default function UsersPage() {
       </div>
 
       {/* Users Table */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xs">
-        <table className="w-full border-collapse">
-          <thead className="bg-gray-900 text-white text-xs uppercase tracking-wider">
-            <tr>
-              <th className="px-4 py-3 text-left font-semibold border-r border-white/20">User</th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-white/20">Contact</th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-white/20">Role</th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-white/20">Company</th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-white/20">Status</th>
-              <th className="px-4 py-3 text-right font-semibold">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {filteredUsers.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-sm text-gray-500">
-                  No users found
-                </td>
-              </tr>
-            ) : (
-              filteredUsers.map((u, index) => {
-                const companyName =
-                  typeof u.companyId === "object" ? u.companyId?.name : null;
-                const isCurrentUser = user?._id === u._id;
-                return (
-                  <tr key={u._id} className="hover:bg-gray-50/80 transition-colors">
-                    <td className="px-4 py-3.5 border-r border-gray-200">
-                      <div className="flex items-center gap-3">
-                        <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 shrink-0">
-                          {index + 1}
-                        </div>
-                        <div className="w-9 h-9 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-bold shrink-0">
-                          {u.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="font-bold text-sm text-gray-900">
-                            {u.name}
-                            {isCurrentUser && (
-                              <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">
-                                You
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[11px] text-gray-500 mt-0.5">
-                            Last login:{" "}
-                            {u.lastLogin
-                              ? new Date(u.lastLogin).toLocaleDateString()
-                              : "Never"}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5 border-r border-gray-200">
-                      <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-1.5 text-sm text-gray-850 font-medium">
-                          <Mail className="h-3 w-3 text-gray-400" />
-                          {u.email}
-                        </div>
-                        {u.phone && (
-                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                            <Phone className="h-3 w-3 text-gray-400" />
-                            {u.phone}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5 border-r border-gray-200">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border ${getRoleBadgeClass(u.role)}`}
-                      >
-                        {getRoleLabel(u.role)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 border-r border-gray-200">
-                      {companyName ? (
-                        <div className="flex items-center gap-1.5 text-sm text-gray-800 font-medium">
-                          <Building2 className="h-3 w-3 text-gray-400" />
-                          {companyName}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400">System</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3.5 border-r border-gray-200">
-                      <span className="badge-outline">
-                        {u.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      {!isCurrentUser && (
-                        <button
-                          onClick={() => setConfirmDelete(u)}
-                          className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
-                          title="Delete user"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      <Table 
+        columns={columns} 
+        data={filteredUsers.map(u => ({ ...u, id: u._id }))} 
+        isLoading={isLoading} 
+      />
 
       {/* Add User Dialog */}
       <Dialog

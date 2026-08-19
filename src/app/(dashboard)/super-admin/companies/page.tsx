@@ -28,6 +28,7 @@ import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
+import { Table } from "@/components/ui/Table";
 
 
 type Company = {
@@ -382,6 +383,154 @@ export default function CompaniesPage() {
   const isCreate = dialogMode === "create";
   const isEdit = dialogMode === "edit";
 
+  const columns = [
+    {
+      key: "company",
+      header: "Company",
+      align: "left" as const,
+      render: (c: Company, index: number) => {
+        const isInactive = c.isActive === false;
+        return (
+          <div className="flex items-center gap-3">
+            <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 shrink-0">
+              {index + 1}
+            </div>
+            <div className="flex items-center gap-2.5">
+              <div
+                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isInactive
+                    ? "bg-gray-300 text-gray-500"
+                    : "bg-gray-900 text-white"
+                  }`}
+              >
+                <Building2 size={16} />
+              </div>
+              <div className="min-w-0">
+                <div className="font-bold text-gray-900 truncate">
+                  {c.name}
+                </div>
+                {c.address && (
+                  <div className="text-xs text-gray-500 truncate max-w-[200px]">
+                    {c.address}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "code",
+      header: "Code",
+      align: "left" as const,
+      render: (c: Company) => (
+        <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
+          {c.code}
+        </span>
+      ),
+    },
+    {
+      key: "contact",
+      header: "Contact",
+      align: "left" as const,
+      render: (c: Company) => (
+        <div className="text-xs space-y-0.5">
+          {c.phone && (
+            <div className="flex items-center gap-1 text-gray-700 font-medium">
+              <Phone size={11} />
+              {c.phone}
+            </div>
+          )}
+          {c.email && (
+            <div className="flex items-center gap-1 text-gray-500">
+              <Mail size={11} />
+              <span className="truncate max-w-[160px]">
+                {c.email}
+              </span>
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "gst_pan",
+      header: "GST / PAN",
+      align: "left" as const,
+      render: (c: Company) => (
+        <div className="flex flex-col gap-1">
+          {c.gstNo && (
+            <span className="text-xs font-mono text-green-700 font-semibold">GST: {c.gstNo}</span>
+          )}
+          {c.panNo && (
+            <span className="text-xs font-mono text-red-600 font-semibold">PAN: {c.panNo}</span>
+          )}
+          {!c.gstNo && !c.panNo && (
+            <span className="text-xs text-gray-400">—</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "admin",
+      header: "Admin",
+      align: "left" as const,
+      render: (c: Company) => {
+        const admin = adminsByCompany[c._id];
+        return admin ? (
+          <div className="min-w-0">
+            <div className="font-bold text-gray-900 text-xs truncate max-w-[160px]">
+              {admin.name}
+            </div>
+            <div className="text-xs text-gray-500 truncate max-w-[160px]">
+              {admin.email}
+            </div>
+          </div>
+        ) : (
+          <span className="text-xs text-gray-400 italic">
+            No admin
+          </span>
+        );
+      },
+    },
+    {
+      key: "status",
+      header: "Status",
+      align: "left" as const,
+      render: (c: Company) => (
+        <span className="badge-outline">
+          {c.isActive ? "Active" : "Inactive"}
+        </span>
+      ),
+    },
+    {
+      key: "created",
+      header: "Created",
+      align: "left" as const,
+      render: (c: Company) => (
+        <div className="flex items-center gap-1 text-xs text-gray-500">
+          <Calendar size={11} />
+          {c.createdAt
+            ? new Date(c.createdAt).toLocaleDateString()
+            : "—"}
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      align: "right" as const,
+      render: (c: Company) => (
+        <div className="flex items-center justify-end gap-1">
+          <EditButton onClick={() => openEdit(c)} />
+          <DeleteButton
+            onClick={() => setConfirmDelete(c)}
+            title="Delete company"
+          />
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-6 w-full">
       {/* Header */}
@@ -416,25 +565,12 @@ export default function CompaniesPage() {
       )}
 
       {/* List */}
-      {companies.length === 0 ? (
-        <div className="card text-center py-10">
-          <Building2 size={48} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500 mb-4">No companies yet</p>
-          <Button
-            onClick={openCreate}
-            leftIcon={<Plus size={18} />}
-          >
-            Create your first company
-          </Button>
-        </div>
-      ) : (
-        <TableView
-          companies={filteredCompanies}
-          adminsByCompany={adminsByCompany}
-          onEdit={openEdit}
-          onDelete={setConfirmDelete}
-        />
-      )}
+      <Table 
+        columns={columns} 
+        data={filteredCompanies.map(c => ({ ...c, id: c._id }))} 
+        isLoading={loading} 
+      />
+
 
       {/* Form Dialog */}
       <Dialog
@@ -666,165 +802,6 @@ export default function CompaniesPage() {
       />
 
 
-    </div>
-  );
-}
-
-// ============================================================================
-// Table View Component
-// ============================================================================
-function TableView({
-  companies,
-  adminsByCompany,
-  onEdit,
-  onDelete,
-}: {
-  companies: Company[];
-  adminsByCompany: Record<string, CompanyAdmin>;
-  onEdit: (c: Company) => void;
-  onDelete: (c: Company) => void;
-}) {
-  return (
-    <div className="card overflow-hidden p-0 border border-gray-200">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="bg-gray-900 text-white text-xs uppercase tracking-wider">
-              <th className="px-4 py-3 text-left font-semibold border-r border-white/20">Company</th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-white/20">Code</th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-white/20">Contact</th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-white/20">GST / PAN</th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-white/20">Admin</th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-white/20">Status</th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-white/20">Created</th>
-              <th className="px-4 py-3 text-right font-semibold">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {companies.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-sm font-medium text-gray-500">
-                  No companies found
-                </td>
-              </tr>
-            ) : (
-              companies.map((c, index) => {
-                const admin = adminsByCompany[c._id];
-                const isInactive = c.isActive === false;
-                return (
-                  <tr
-                    key={c._id}
-                    className={`hover:bg-gray-50/80 transition-colors ${isInactive ? "opacity-60 bg-gray-50" : ""}`}
-                  >
-                  <td className="px-4 py-3.5 border-r border-gray-200">
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 shrink-0">
-                        {index + 1}
-                      </div>
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                            isInactive
-                              ? "bg-gray-300 text-gray-500"
-                              : "bg-gray-900 text-white"
-                          }`}
-                        >
-                          <Building2 size={16} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-bold text-gray-900 truncate">
-                            {c.name}
-                          </div>
-                          {c.address && (
-                            <div className="text-xs text-gray-500 truncate max-w-[200px]">
-                              {c.address}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5 border-r border-gray-200">
-                    <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                      {c.code}
-                    </span>
-                  </td>
-
-                  <td className="px-4 py-3.5 border-r border-gray-200">
-                    <div className="text-xs space-y-0.5">
-                      {c.phone && (
-                        <div className="flex items-center gap-1 text-gray-700 font-medium">
-                          <Phone size={11} />
-                          {c.phone}
-                        </div>
-                      )}
-                      {c.email && (
-                        <div className="flex items-center gap-1 text-gray-500">
-                          <Mail size={11} />
-                          <span className="truncate max-w-[160px]">
-                            {c.email}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5 border-r border-gray-200">
-                    <div className="flex flex-col gap-1">
-                      {c.gstNo && (
-                        <span className="text-xs font-mono text-green-700 font-semibold">GST: {c.gstNo}</span>
-                      )}
-                      {c.panNo && (
-                        <span className="text-xs font-mono text-red-600 font-semibold">PAN: {c.panNo}</span>
-                      )}
-                      {!c.gstNo && !c.panNo && (
-                        <span className="text-xs text-gray-400">—</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5 border-r border-gray-200">
-                    {admin ? (
-                      <div className="min-w-0">
-                        <div className="font-bold text-gray-900 text-xs truncate max-w-[160px]">
-                          {admin.name}
-                        </div>
-                        <div className="text-xs text-gray-500 truncate max-w-[160px]">
-                          {admin.email}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-gray-400 italic">
-                        No admin
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3.5 border-r border-gray-200">
-                    <span className="badge-outline">
-                      {c.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 border-r border-gray-200 text-xs text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <Calendar size={11} />
-                      {c.createdAt
-                        ? new Date(c.createdAt).toLocaleDateString()
-                        : "—"}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center justify-end gap-1">
-                      <EditButton onClick={() => onEdit(c)} />
-                      <DeleteButton
-                        onClick={() => onDelete(c)}
-                        title="Delete company"
-                      />
-                    </div>
-                  </td>
-                </tr>
-              );
-            }))}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }
