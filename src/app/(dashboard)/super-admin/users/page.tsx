@@ -22,7 +22,7 @@ import { Select } from "@/components/ui/Select";
 import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
-import { PageSkeleton } from "@/components/ui/PageSkeleton";
+
 
 import { companyService } from "@/services/companyService";
 import { userService } from "@/services/userService";
@@ -219,9 +219,7 @@ export default function UsersPage() {
     return "Staff";
   };
 
-  if (isLoading) {
-    return <PageSkeleton />;
-  }
+
 
   return (
     <div className="flex flex-col gap-6 w-full">

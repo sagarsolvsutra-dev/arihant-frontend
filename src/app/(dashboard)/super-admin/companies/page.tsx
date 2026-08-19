@@ -28,7 +28,7 @@ import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
-import { PageSkeleton } from "@/components/ui/PageSkeleton";
+
 
 type Company = {
   _id: string;
@@ -377,9 +377,7 @@ export default function CompaniesPage() {
     return list;
   }, [companies, searchQuery]);
 
-  if (loading) {
-    return <PageSkeleton />;
-  }
+
 
   const isCreate = dialogMode === "create";
   const isEdit = dialogMode === "edit";
