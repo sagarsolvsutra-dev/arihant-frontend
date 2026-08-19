@@ -21,7 +21,7 @@ interface SupplierGroupRecord {
 export default function SupplierGroupsPage() {
   const { selectedCompanyId } = useCompany();
   const [groups, setGroups] = useState<SupplierGroupRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Form State

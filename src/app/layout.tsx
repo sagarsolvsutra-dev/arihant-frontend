@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Anek_Gujarati } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { CompanyProvider } from "@/context/CompanyContext";
@@ -12,6 +12,11 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const anekGujarati = Anek_Gujarati({
+  variable: "--font-anek-gujarati",
+  subsets: ["gujarati"],
 });
 
 export const metadata: Metadata = {
@@ -27,7 +32,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${anekGujarati.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body

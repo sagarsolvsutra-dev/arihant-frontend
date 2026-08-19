@@ -75,7 +75,7 @@ export default function HsnPage() {
   const { selectedCompanyId } = useCompany();
   const [hsnCodes, setHsnCodes] = useState<HsnCodeRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Form State
   const [isFormOpen, setIsFormOpen] = useState(false);

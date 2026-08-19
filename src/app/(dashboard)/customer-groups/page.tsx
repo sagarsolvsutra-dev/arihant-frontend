@@ -22,7 +22,7 @@ interface CustomerGroupRecord {
 export default function CustomerGroupsPage() {
   const { selectedCompanyId } = useCompany();
   const [groups, setGroups] = useState<CustomerGroupRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Form State

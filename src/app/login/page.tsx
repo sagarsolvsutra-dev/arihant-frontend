@@ -77,7 +77,9 @@ export default function LoginPage() {
       localStorage.setItem("user", JSON.stringify(data.user));
 
       toast.success(`Welcome back, ${data.user.name}!`);
-      setTimeout(() => router.push("/dashboard"), 300);
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 300);
     } catch (err) {
       const msg = "Network error — please try again";
       setError(msg);
@@ -106,7 +108,7 @@ export default function LoginPage() {
             Inventory • Billing • Accounting • GST
           </p>
           <p className="text-xs text-gray-400 mt-1 font-gujarati">
-            �ન્વેન્ટરી • બ�લિંગ • એકાઉન્ટ�ંગ • GST
+            ઇન્વેન્ટરી • બિલિંગ • એકાઉન્ટિંગ • GST
           </p>
         </div>
 
@@ -219,39 +221,7 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Backend Status Bar */}
-        <div
-          className={`px-8 py-3 border-t border-gray-100 flex items-center justify-between text-xs ${
-            backendStatus === "online"
-              ? "bg-green-50"
-              : backendStatus === "offline"
-              ? "bg-red-50"
-              : "bg-gray-50"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Server size={12} className="text-gray-500" />
-            <span className="text-gray-600 font-medium">Backend</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {backendStatus === "checking" ? (
-              <>
-                <Loader2 size={10} className="animate-spin text-gray-400" />
-                <span className="text-gray-500">Checking...</span>
-              </>
-            ) : backendStatus === "online" ? (
-              <>
-                <Wifi size={10} className="text-green-600" />
-                <span className="text-green-700 font-semibold">Connected</span>
-              </>
-            ) : (
-              <>
-                <WifiOff size={10} className="text-red-500" />
-                <span className="text-red-600 font-semibold">Offline</span>
-              </>
-            )}
-          </div>
-        </div>
+
       </div>
 
       {/* Footer outside card */}

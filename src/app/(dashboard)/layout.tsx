@@ -13,23 +13,26 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<any>(() => {
-    if (typeof window !== "undefined") {
-      const userData = localStorage.getItem("user");
-      if (userData) {
-        try {
-          return JSON.parse(userData);
-        } catch {
-          return null;
-        }
-      }
-    }
-    return null;
-  });
+  const [isMounted, setIsMounted] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
+    setIsMounted(true);
+    
+    // Read from localStorage on mount to avoid hydration mismatch
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData));
+      } catch {
+        setUser(null);
+      }
+    }
+    
     checkAuth();
   }, []);
+
+
 
   const checkAuth = async () => {
     const token = localStorage.getItem("token");
@@ -59,15 +62,7 @@ export default function DashboardLayout({
     }
   };
 
-  // if (isLoading) {
-  //   return (
-  //     <div className="min-h-screen bg-[#f8f9fa] pt-16">
-  //       <PageSkeleton />
-  //     </div>
-  //   );
-  // }
-
-  if (!user) {
+  if (!isMounted || !user) {
     return null;
   }
 
