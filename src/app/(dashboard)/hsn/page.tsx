@@ -72,7 +72,7 @@ const uqcOptions = [
 
 
 export default function HsnPage() {
-  const { selectedCompanyId } = useCompany();
+  const { selectedCompanyId, isContextLoading } = useCompany();
   const [hsnCodes, setHsnCodes] = useState<HsnCodeRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -95,10 +95,13 @@ export default function HsnPage() {
 
   // Load HSN records whenever selected company changes
   useEffect(() => {
-    if (!selectedCompanyId) return;
+    if (isContextLoading) {
+      setIsLoading(true);
+      return;
+    }
     loadHsnCodes();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, isContextLoading]);
 
   async function loadHsnCodes() {
     setIsLoading(true);
@@ -255,7 +258,7 @@ export default function HsnPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 w-full">
       {/* Section Header Cards */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-xs p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -274,11 +277,11 @@ export default function HsnPage() {
           <Button
             variant="outline"
             size="sm"
-            className="h-9 px-3"
-            leftIcon={<RefreshCw className="h-4 w-4" />}
+            className="px-2.5 hover:bg-gray-50"
+            title="Refresh"
             onClick={loadHsnCodes}
           >
-            Refresh
+            <RefreshCw className="h-4 w-4" />
           </Button>
           <Button
             variant="primary"

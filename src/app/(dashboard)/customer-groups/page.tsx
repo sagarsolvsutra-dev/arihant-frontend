@@ -20,7 +20,7 @@ interface CustomerGroupRecord {
 }
 
 export default function CustomerGroupsPage() {
-  const { selectedCompanyId } = useCompany();
+  const { selectedCompanyId, isContextLoading } = useCompany();
   const [groups, setGroups] = useState<CustomerGroupRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -40,8 +40,12 @@ export default function CustomerGroupsPage() {
   const [deletingRecord, setDeletingRecord] = useState<CustomerGroupRecord | null>(null);
 
   useEffect(() => {
+    if (isContextLoading) {
+      setIsLoading(true);
+      return;
+    }
     loadCustomerGroups();
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, isContextLoading]);
 
   async function loadCustomerGroups() {
     setIsLoading(true);
@@ -186,10 +190,11 @@ export default function CustomerGroupsPage() {
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={loadCustomerGroups}
-            className="hover:bg-gray-100 text-gray-600 cursor-pointer"
+            className="px-2.5 hover:bg-gray-50"
+            title="Refresh"
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -200,9 +205,10 @@ export default function CustomerGroupsPage() {
               resetForm();
               setIsFormOpen(true);
             }}
-            className="bg-black hover:bg-gray-900 text-white border-none cursor-pointer flex items-center gap-1.5"
+            className="bg-black hover:bg-gray-900 text-white border-none cursor-pointer"
+            leftIcon={<Plus className="h-4 w-4" />}
           >
-            <Plus className="h-4 w-4" /> Add Customer Group
+            Add Customer Group
           </Button>
         </div>
       </div>

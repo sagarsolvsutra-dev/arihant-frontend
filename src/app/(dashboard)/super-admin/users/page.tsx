@@ -224,7 +224,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 py-6 px-4 max-w-7xl mx-auto w-full">
+    <div className="flex flex-col gap-6 w-full">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-start gap-3">

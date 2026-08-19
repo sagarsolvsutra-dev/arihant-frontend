@@ -13,6 +13,7 @@ interface CompanyContextType {
   selectedCompanyId: string;
   setSelectedCompanyId: (id: string) => void;
   activeCompany: Company | null;
+  isContextLoading: boolean;
 }
 
 
@@ -22,9 +23,11 @@ const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
 export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
+  const [isContextLoading, setIsContextLoading] = useState<boolean>(true);
 
   useEffect(() => {
     async function loadCompanies() {
+      setIsContextLoading(true);
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
         const res = await fetch(`${apiUrl}/companies`, {
@@ -61,11 +64,13 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
             return;
           }
         }
-        throw new Error("Empty response");
+        // throw new Error("Empty response");
       } catch (e) {
         console.error("Failed to load companies:", e);
         setCompanies([]);
         setSelectedCompanyId("");
+      } finally {
+        setIsContextLoading(false);
       }
     }
     loadCompanies();
@@ -80,6 +85,7 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         selectedCompanyId,
         setSelectedCompanyId,
         activeCompany,
+        isContextLoading,
       }}
     >
       {children}
