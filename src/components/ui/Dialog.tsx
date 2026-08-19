@@ -10,6 +10,7 @@ export interface DialogProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   size?: "sm" | "md" | "lg";
+  overflowVisible?: boolean;
 }
 
 export const Dialog: React.FC<DialogProps> = ({
@@ -19,6 +20,7 @@ export const Dialog: React.FC<DialogProps> = ({
   children,
   footer,
   size = "md",
+  overflowVisible = false,
 }) => {
   // Prevent scrolling when dialog is open
   useEffect(() => {
@@ -50,7 +52,9 @@ export const Dialog: React.FC<DialogProps> = ({
 
       {/* Dialog Content Wrapper */}
       <div
-        className={`bg-white rounded-xl shadow-2xl w-full ${sizeClasses[size]} z-10 flex flex-col overflow-hidden transition-all duration-300 transform scale-100 animate-zoomIn`}
+        className={`bg-white rounded-xl shadow-2xl w-full ${sizeClasses[size]} z-10 flex flex-col transition-all duration-300 transform scale-100 animate-slideUp ${
+          overflowVisible ? "overflow-visible" : "overflow-hidden"
+        }`}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
@@ -64,7 +68,9 @@ export const Dialog: React.FC<DialogProps> = ({
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5 overflow-y-auto max-h-[70vh] text-sm text-gray-600 leading-relaxed">
+        <div className={`px-6 py-5 text-sm text-gray-600 leading-relaxed ${
+          overflowVisible ? "overflow-visible" : "overflow-y-auto max-h-[70vh]"
+        }`}>
           {children}
         </div>
 

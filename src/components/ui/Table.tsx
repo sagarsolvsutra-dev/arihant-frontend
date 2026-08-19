@@ -8,6 +8,9 @@ export interface Column<T> {
   header: string;
   align?: "left" | "center" | "right";
   render?: (row: T, index: number) => React.ReactNode;
+  // legacy alias used in some pages
+  accessor?: ((row: T, index: number) => React.ReactNode) | keyof T;
+  className?: string;
 }
 
 export interface TableProps<T> {
@@ -27,13 +30,13 @@ export function Table<T extends { id: string | number }>({
 }: TableProps<T>) {
   return (
     <div className="w-full overflow-x-auto rounded-lg border border-gray-200 shadow-sm bg-white">
-      <table className="w-full min-w-max border-collapse">
+      <table className="w-full border-collapse table-fixed">
         {/* Table Header */}
         <thead>
           <tr className="bg-black text-white text-xs font-semibold uppercase tracking-wider h-11 border-b border-gray-200">
             {columns.map((column, idx) => (
               <th
-                key={column.key}
+                key={column.key || `col-${idx}-${column.header || ""}`}
                 className={`px-4 py-3 border-r border-gray-800 last:border-r-0 text-${column.align || "left"} font-medium`}
               >
                 {column.header}
@@ -65,26 +68,58 @@ export function Table<T extends { id: string | number }>({
           ) : data.length > 0 ? (
             data.map((row, rowIndex) => (
               <tr
-                key={row.id}
+                key={
+                  row.id ??
+                  (row as any)._id ??
+                  `row-${rowIndex}`
+                }
                 onClick={() => onRowClick && onRowClick(row)}
                 className={`h-14 transition-colors hover:bg-gray-50/70 ${
                   onRowClick ? "cursor-pointer" : ""
                 }`}
               >
-                {columns.map((column, colIndex) => (
-                  <td
-                    key={`${row.id}-${column.key}`}
-                    className={`px-4 py-3 border-r border-gray-200 last:border-r-0 text-${column.align || "left"} text-gray-800`}
-                  >
-                    {column.render ? (
-                      column.render(row, rowIndex)
-                    ) : (
-                      (row[column.key as keyof T] as React.ReactNode) ?? (
+                {columns.map((column, colIndex) => {
+                  const cell = (() => {
+                    // 1. render function (preferred)
+                    if (typeof column.render === "function") {
+                      return column.render(row, rowIndex);
+                    }
+                    // 2. accessor as a function
+                    if (typeof column.accessor === "function") {
+                      return column.accessor(row, rowIndex);
+                    }
+                    // 3. accessor as a key (string)
+                    if (
+                      typeof column.accessor === "string" &&
+                      (row as any)[column.accessor] !== undefined
+                    ) {
+                      const v = (row as any)[column.accessor];
+                      return v === "" ? (
                         <span className="text-gray-400">NA</span>
-                      )
-                    )}
-                  </td>
-                ))}
+                      ) : (
+                        v
+                      );
+                    }
+                    // 4. fallback: lookup by column.key
+                    const v = (row as any)[column.key];
+                    if (v === undefined || v === null || v === "") {
+                      return <span className="text-gray-400">NA</span>;
+                    }
+                    return v as React.ReactNode;
+                  })();
+                  return (
+                    <td
+                      key={`${
+                        row.id ?? (row as any)._id ?? rowIndex
+                      }-${column.key || colIndex}`}
+                      className={`px-4 py-3 border-r border-gray-200 last:border-r-0 text-${column.align || "left"} text-gray-800 ${
+                        (column as any).className || ""
+                      }`}
+                    >
+                      {cell}
+                    </td>
+                  );
+                })}
               </tr>
             ))
           ) : (
