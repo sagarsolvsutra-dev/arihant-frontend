@@ -388,14 +388,15 @@ export default function CompaniesPage() {
       key: "company",
       header: "Company",
       align: "left" as const,
+      className: "w-[28%]",
       render: (c: Company, index: number) => {
         const isInactive = c.isActive === false;
         return (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0 w-full">
             <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 shrink-0">
               {index + 1}
             </div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <div
                 className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isInactive
                     ? "bg-gray-300 text-gray-500"
@@ -433,6 +434,7 @@ export default function CompaniesPage() {
       key: "contact",
       header: "Contact",
       align: "left" as const,
+      className: "w-[20%]",
       render: (c: Company) => (
         <div className="text-xs space-y-0.5">
           {c.phone && (
@@ -474,6 +476,7 @@ export default function CompaniesPage() {
       key: "admin",
       header: "Admin",
       align: "left" as const,
+      className: "w-[15%]",
       render: (c: Company) => {
         const admin = adminsByCompany[c._id];
         return admin ? (
