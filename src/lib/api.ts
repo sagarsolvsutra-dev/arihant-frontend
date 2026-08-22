@@ -14,10 +14,10 @@ export const API_ENDPOINTS = {
   CREATE_COMPANY: `${API_BASE_URL}/companies`,
 
   // Users
-  USERS: `${API_BASE_URL}/auth/users`,
+  USERS: `${API_BASE_URL}/users`,
 
   // Masters
-  WAREHNS: `${API_BASE_URL}/warehouses`,
+  WAREHOUSES: `${API_BASE_URL}/warehouses`,
   ITEMS: `${API_BASE_URL}/items`,
   HSN: `${API_BASE_URL}/hsn`,
   CUSTOMERS: `${API_BASE_URL}/customers`,
@@ -25,9 +25,12 @@ export const API_ENDPOINTS = {
   SALESMEN: `${API_BASE_URL}/salesmen`,
   SCHEMES: `${API_BASE_URL}/schemes`,
   ITEM_GROUPS: `${API_BASE_URL}/item-groups`,
+  ITEM_NAMES: `${API_BASE_URL}/item-names`,
+  ITEM_SUB_GROUPS: `${API_BASE_URL}/item-sub-groups`,
   CUSTOMER_GROUPS: `${API_BASE_URL}/customer-groups`,
   SUPPLIER_GROUPS: `${API_BASE_URL}/supplier-groups`,
   COMPANIES_BRANDS: `${API_BASE_URL}/companies-brands`,
+  OPENING_BILLS: `${API_BASE_URL}/opening-bills`,
 
   // Sales
   SALES: `${API_BASE_URL}/sales`,

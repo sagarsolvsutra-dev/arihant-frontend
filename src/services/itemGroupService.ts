@@ -26,8 +26,8 @@ async function request<T = any>(
 }
 
 export const itemGroupService = {
-  getItemGroups: (companyId: string) => {
-    return request(`${API_ENDPOINTS.ITEM_GROUPS}?companyId=${companyId}`);
+  getItemGroups: (companyId: string, page = 1, limit = 10, search = "") => {
+    return request(`${API_ENDPOINTS.ITEM_GROUPS}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
   },
   createItemGroup: (payload: { companyId: string; name: string; shortName?: string; commissionRate?: number; isActive?: boolean }) => {
     return request(API_ENDPOINTS.ITEM_GROUPS, {

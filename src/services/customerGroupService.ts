@@ -26,8 +26,8 @@ async function request<T = any>(
 }
 
 export const customerGroupService = {
-  getCustomerGroups: (companyId: string) => {
-    return request(`${API_ENDPOINTS.CUSTOMER_GROUPS}?companyId=${companyId}`);
+  getCustomerGroups: (companyId: string, page = 1, limit = 10, search = "") => {
+    return request(`${API_ENDPOINTS.CUSTOMER_GROUPS}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
   },
   createCustomerGroup: (payload: { companyId: string; name: string; zoneNo?: string }) => {
     return request(API_ENDPOINTS.CUSTOMER_GROUPS, {

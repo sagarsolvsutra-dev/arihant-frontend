@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw } from "lucide-react";
+import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
+import { Plus, Search, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -75,6 +76,8 @@ export default function HsnPage() {
   const { selectedCompanyId, isContextLoading } = useCompany();
   const [hsnCodes, setHsnCodes] = useState<HsnCodeRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
 
   // Form State
@@ -93,15 +96,18 @@ export default function HsnPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState<HsnCodeRecord | null>(null);
 
-  // Load HSN records whenever selected company changes
+  // Load HSN records with debounce for search
   useEffect(() => {
-    if (isContextLoading) {
-      setIsLoading(true);
+    if (isContextLoading || !selectedCompanyId) {
+      if (isContextLoading) setIsLoading(true);
       return;
     }
-    loadHsnCodes();
+    const timer = setTimeout(() => {
+      loadHsnCodes();
+    }, 300);
+    return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCompanyId, isContextLoading]);
+  }, [selectedCompanyId, isContextLoading, page, searchQuery]);
 
   async function loadHsnCodes() {
     setIsLoading(true);
@@ -114,9 +120,15 @@ export default function HsnPage() {
     }
 
     try {
-      const data = await hsnService.getHsnCodes(selectedCompanyId);
-      // Standardize _id to id for our UI Table key
-      setHsnCodes(data.map((item: any) => ({ ...item, id: item._id })));
+      const data = await hsnService.getHsnCodes(selectedCompanyId, page, 10, searchQuery);
+      if (data.pagination) {
+        setHsnCodes(data.data.map((item: any) => ({ ...item, id: item._id })));
+        setTotalPages(data.pagination.totalPages || 1);
+      } else {
+        const list = Array.isArray(data) ? data : data.data || [];
+        setHsnCodes(list.map((item: any) => ({ ...item, id: item._id })));
+        setTotalPages(1);
+      }
     } catch (e) {
       console.error(e);
       setHsnCodes([]);
@@ -215,11 +227,10 @@ export default function HsnPage() {
     setFormAlert("");
   };
 
-  const filteredHsn = hsnCodes.filter(
-    (item) =>
-      item.hsnCode.includes(searchQuery) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    setPage(1);
+  };
 
   const columns = [
     {
@@ -246,12 +257,8 @@ export default function HsnPage() {
       align: "center" as const,
       render: (row: HsnCodeRecord) => (
         <div className="flex items-center justify-center gap-1">
-          <Button variant="ghost" size="sm" className="p-1 h-8 w-8 hover:bg-blue-50" onClick={() => handleEditClick(row)}>
-            <Edit className="h-4 w-4 text-blue-600" />
-          </Button>
-          <Button variant="ghost" size="sm" className="p-1 h-8 w-8 hover:bg-red-50" onClick={() => handleDeleteClick(row)}>
-            <Trash2 className="h-4 w-4 text-red-600" />
-          </Button>
+          <EditButton onClick={() => handleEditClick(row)} />
+          <DeleteButton onClick={() => handleDeleteClick(row)} />
         </div>
       ),
     },
@@ -271,7 +278,7 @@ export default function HsnPage() {
             <SearchInput
               placeholder="Search HSN code or description..."
               value={searchQuery}
-              onChange={(val) => setSearchQuery(val)}
+              onChange={handleSearchChange}
             />
           </div>
           <Button
@@ -300,7 +307,16 @@ export default function HsnPage() {
 
       {/* Main Table area */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-xs p-6">
-        <Table columns={columns} data={filteredHsn} isLoading={isLoading} />
+        <Table 
+          columns={columns} 
+          data={hsnCodes} 
+          isLoading={isLoading} 
+          pagination={{
+            currentPage: page,
+            totalPages,
+            onPageChange: setPage
+          }}
+        />
       </div>
 
       {/* Add / Edit Form Dialog */}

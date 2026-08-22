@@ -10,14 +10,13 @@ import {
   Settings,
   Users,
   Layers,
-  FileText,
   Bell,
-  Grid,
   Building2,
   LogOut,
   ChevronDown,
   ArrowLeft,
   User as UserIcon,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
@@ -58,7 +57,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   // Automatically switch sidebar view to "masters" if the pathname matches a master page
   useEffect(() => {
-    const masterPaths = ["/hsn", "/items", "/item-groups", "/item-sub-groups", "/customers", "/customer-groups", "/suppliers", "/supplier-groups", "/salesmans", "/schemes"];
+    const masterPaths = ["/hsn", "/items", "/item-groups", "/item-names", "/item-sub-groups", "/customers", "/customer-groups", "/suppliers", "/supplier-groups", "/salesmans", "/schemes"];
     if (masterPaths.some(path => pathname === path || pathname?.startsWith(path))) {
       setSidebarView("masters");
     }
@@ -149,7 +148,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         },
       ];
     }
-    return [
+    // Company Admin & Staff both get Dashboard + Reports
+    const baseMenu = [
       {
         id: "ca-dashboard",
         label: "ડેસ્કટોપ (Dashboard)",
@@ -157,7 +157,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         icon: <LayoutDashboard className="h-5 w-5" />,
         href: "/dashboard",
       },
-
       {
         id: "ca-reports",
         label: "રિપોર્ટ (Reports)",
@@ -166,6 +165,30 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         href: "#",
       },
     ];
+
+    // Company Admin gets additional modules
+    if (isCompanyAdmin) {
+      return [
+        ...baseMenu.slice(0, 1),
+        {
+          id: "ca-purchase",
+          label: "Purchase (ખરીદ)",
+          englishLabel: "Purchase",
+          icon: <ShoppingBag className="h-5 w-5" />,
+          href: "#",
+        },
+        {
+          id: "ca-sell",
+          label: "Sell (વેચાણ)",
+          englishLabel: "Sell",
+          icon: <Tag className="h-5 w-5" />,
+          href: "#",
+        },
+        baseMenu[1],
+      ];
+    }
+
+    return baseMenu;
   };
 
   const menuItems = getMenuItems();
@@ -193,11 +216,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       <Link
         key={item.id}
         href={item.href}
-        className={`w-full py-2 px-3 rounded-lg text-xs font-semibold text-center border transition-all duration-200 ${
-          isActive
+        className={`w-full py-2 px-3 rounded-lg text-xs font-semibold text-center border transition-all duration-200 ${isActive
             ? "bg-black text-white border-black font-bold"
             : "bg-gray-100 hover:bg-gray-200 text-gray-800 border-gray-300/80 hover:border-gray-450 font-semibold"
-        }`}
+          }`}
       >
         {item.label}
       </Link>
@@ -211,11 +233,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         <div className="flex-1 relative w-full overflow-hidden">
           {/* Main Menu Panel */}
           <div
-            className={`absolute inset-0 flex flex-col justify-between pb-4 transition-all duration-300 ease-in-out ${
-              sidebarView === "main"
+            className={`absolute inset-0 flex flex-col justify-between pb-4 transition-all duration-300 ease-in-out ${sidebarView === "main"
                 ? "translate-x-0 opacity-100 pointer-events-auto"
                 : "-translate-x-full opacity-0 pointer-events-none"
-            }`}
+              }`}
           >
             <div className="flex flex-col gap-6 py-5">
               {/* Logo Section */}
@@ -263,11 +284,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
           {/* Masters Panel */}
           <div
-            className={`absolute inset-0 flex flex-col overflow-hidden bg-white transition-all duration-300 ease-in-out ${
-              sidebarView === "masters"
+            className={`absolute inset-0 flex flex-col overflow-hidden bg-white transition-all duration-300 ease-in-out ${sidebarView === "masters"
                 ? "translate-x-0 opacity-100 pointer-events-auto"
                 : "translate-x-full opacity-0 pointer-events-none"
-            }`}
+              }`}
           >
             {/* Masters Dark Header */}
             <div className="bg-gray-900 text-white flex items-center gap-3 px-4 py-4 shrink-0">
@@ -284,29 +304,29 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             {/* Masters Sub-menu list styled as screenshot */}
             <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2 bg-[#f9fafb]">
               {[
-                { label: "Items / M.R.Ps.", href: "#" },
+                { label: "Items / M.R.Ps.", href: "/items" },
                 { label: "HSN Codes", href: "/hsn" },
                 { label: "Item Groups", href: "/item-groups" },
-                { label: "Item Sub Groups", href: "#" },
-                { label: "Customers", href: "#" },
-                { label: "Opening Pending Bill", href: "#" },
+                { label: "Item Names", href: "/item-names" },
+                { label: "Item Sub Groups", href: "/item-sub-groups" },
+                { label: "Customers", href: "/customers" },
                 { label: "Customer Groups", href: "/customer-groups" },
-                { label: "Suppliers", href: "#" },
-                { label: "Opening Pending Bill (Supp)", href: "#" },
+                { label: "Suppliers", href: "/suppliers" },
                 { label: "Supplier Groups", href: "/supplier-groups" },
-                { label: "Salesmans", href: "#" },
-                { label: "Schemes", href: "#" },
+                { label: "Salesmans", href: "/salesmen" },
+                { label: "Schemes", href: "/schemes" },
+                { label: "Opening Pending Bill", href: "/opening-bills/sale" },
+                { label: "Opening Pending Bill (Supp)", href: "/opening-bills/purchase" },
               ].map((sub, idx) => {
-                const isSubActive = pathname === sub.href;
+                const isSubActive = pathname === sub.href || pathname.startsWith(`${sub.href}/`);
                 return (
                   <Link
                     key={idx}
                     href={sub.href}
-                    className={`w-full py-2 px-3 rounded-lg text-xs font-semibold text-center border transition-all duration-150 ${
-                      isSubActive
+                    className={`w-full py-2 px-3 rounded-lg text-xs font-semibold text-center border transition-all duration-150 ${isSubActive
                         ? "bg-black text-white border-black"
                         : "bg-gray-100 hover:bg-gray-200 text-gray-800 border-gray-300/80 hover:border-gray-450"
-                    }`}
+                      }`}
                   >
                     {sub.label}
                   </Link>

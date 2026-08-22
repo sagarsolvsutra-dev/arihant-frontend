@@ -92,7 +92,7 @@ export const api = {
     }),
 
   // Masters
-  getWarehouses: () => request(API_ENDPOINTS.WAREHNS, {}, false),
+  getWarehouses: () => request(API_ENDPOINTS.WAREHOUSES, {}, false),
   getItems: () => request(API_ENDPOINTS.ITEMS, {}, false),
   getHSN: () => request(API_ENDPOINTS.HSN, {}, false),
   getCustomers: () => request(API_ENDPOINTS.CUSTOMERS, {}, false),

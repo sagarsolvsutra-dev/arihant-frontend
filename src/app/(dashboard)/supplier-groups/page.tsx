@@ -23,6 +23,8 @@ export default function SupplierGroupsPage() {
   const [groups, setGroups] = useState<SupplierGroupRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Form State
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -38,12 +40,15 @@ export default function SupplierGroupsPage() {
   const [deletingRecord, setDeletingRecord] = useState<SupplierGroupRecord | null>(null);
 
   useEffect(() => {
-    if (isContextLoading) {
-      setIsLoading(true);
+    if (isContextLoading || !selectedCompanyId) {
+      if (isContextLoading) setIsLoading(true);
       return;
     }
-    loadSupplierGroups();
-  }, [selectedCompanyId, isContextLoading]);
+    const timer = setTimeout(() => {
+      loadSupplierGroups();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [selectedCompanyId, isContextLoading, page, searchQuery]);
 
   async function loadSupplierGroups() {
     setIsLoading(true);
@@ -56,8 +61,15 @@ export default function SupplierGroupsPage() {
     }
 
     try {
-      const data = await supplierGroupService.getSupplierGroups(selectedCompanyId);
-      setGroups(data.map((item: any) => ({ ...item, id: item._id })));
+      const data = await supplierGroupService.getSupplierGroups(selectedCompanyId, page, 10, searchQuery);
+      if (data.pagination) {
+        setGroups(data.data.map((item: any) => ({ ...item, id: item._id })));
+        setTotalPages(data.pagination.totalPages || 1);
+      } else {
+        const list = Array.isArray(data) ? data : data.data || [];
+        setGroups(list.map((item: any) => ({ ...item, id: item._id })));
+        setTotalPages(1);
+      }
     } catch (e) {
       console.error(e);
       setGroups([]);
@@ -133,9 +145,10 @@ export default function SupplierGroupsPage() {
     setFormAlert("");
   };
 
-  const filteredGroups = groups.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    setPage(1);
+  };
 
   const columns = [
     {
@@ -205,13 +218,22 @@ export default function SupplierGroupsPage() {
         <SearchInput
           placeholder="Search by group name..."
           value={searchQuery}
-          onChange={(val) => setSearchQuery(val)}
+          onChange={handleSearchChange}
         />
       </div>
 
       {/* Main Table area */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-xs p-6">
-        <Table columns={columns} data={filteredGroups} isLoading={isLoading} />
+        <Table 
+          columns={columns} 
+          data={groups} 
+          isLoading={isLoading} 
+          pagination={{
+            currentPage: page,
+            totalPages,
+            onPageChange: setPage
+          }}
+        />
       </div>
 
       {/* Add / Edit Form Dialog */}

@@ -26,8 +26,8 @@ async function request<T = any>(
 }
 
 export const hsnService = {
-  getHsnCodes: (companyId: string) => {
-    return request(`${API_ENDPOINTS.HSN}?companyId=${companyId}`);
+  getHsnCodes: (companyId: string, page = 1, limit = 10, search = "") => {
+    return request(`${API_ENDPOINTS.HSN}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
   },
   createHsnCode: (payload: { companyId: string; hsnCode: string; description: string; uqcUnit: string }) => {
     return request(API_ENDPOINTS.HSN, {

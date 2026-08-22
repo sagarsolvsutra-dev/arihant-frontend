@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
 
 export interface EditButtonProps {
   onClick: () => void;
@@ -19,9 +19,9 @@ export const EditButton: React.FC<EditButtonProps> = ({
     onClick={onClick}
     disabled={disabled}
     title={title}
-    className="icon-btn cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+    className="inline-flex items-center justify-center rounded-md p-1 h-8 w-8 hover:bg-blue-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
   >
-    <Edit2 size={15} />
+    <Edit size={16} className="text-blue-600" />
   </button>
 );
 
@@ -41,8 +41,8 @@ export const DeleteButton: React.FC<DeleteButtonProps> = ({
     onClick={onClick}
     disabled={disabled}
     title={title}
-    className="icon-btn icon-btn-danger cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+    className="inline-flex items-center justify-center rounded-md p-1 h-8 w-8 hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
   >
-    <Trash2 size={15} />
+    <Trash2 size={16} className="text-red-600" />
   </button>
 );

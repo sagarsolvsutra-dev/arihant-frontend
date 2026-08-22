@@ -25,24 +25,31 @@ async function request<T = any>(
   return data;
 }
 
-export const supplierGroupService = {
-  getSupplierGroups: (companyId: string, page = 1, limit = 10, search = "") => {
-    return request(`${API_ENDPOINTS.SUPPLIER_GROUPS}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
-  },
-  createSupplierGroup: (payload: { companyId: string; name: string }) => {
-    return request(API_ENDPOINTS.SUPPLIER_GROUPS, {
+export const itemNameService = {
+  createItemName: async (payload: { companyId: string; itemGroupId: string; name: string; isActive?: boolean }) => {
+    return request(API_ENDPOINTS.ITEM_NAMES, {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
-  updateSupplierGroup: (id: string, payload: { name?: string }) => {
-    return request(`${API_ENDPOINTS.SUPPLIER_GROUPS}/${id}`, {
+
+  getItemNames: async (companyId: string, search = "", itemGroupId = "") => {
+    let url = `${API_ENDPOINTS.ITEM_NAMES}/company/${companyId}?search=${encodeURIComponent(search)}`;
+    if (itemGroupId) {
+      url += `&itemGroupId=${itemGroupId}`;
+    }
+    return request(url);
+  },
+
+  updateItemName: async (id: string, payload: { itemGroupId?: string; name?: string; isActive?: boolean }) => {
+    return request(`${API_ENDPOINTS.ITEM_NAMES}/${id}`, {
       method: "PUT",
       body: JSON.stringify(payload),
     });
   },
-  deleteSupplierGroup: (id: string) => {
-    return request(`${API_ENDPOINTS.SUPPLIER_GROUPS}/${id}`, {
+
+  deleteItemName: async (id: string) => {
+    return request(`${API_ENDPOINTS.ITEM_NAMES}/${id}`, {
       method: "DELETE",
     });
   },

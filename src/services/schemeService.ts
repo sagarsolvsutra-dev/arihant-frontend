@@ -25,24 +25,24 @@ async function request<T = any>(
   return data;
 }
 
-export const supplierGroupService = {
-  getSupplierGroups: (companyId: string, page = 1, limit = 10, search = "") => {
-    return request(`${API_ENDPOINTS.SUPPLIER_GROUPS}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
+export const schemeService = {
+  getSchemes: (companyId: string, page = 1, limit = 10, search = "") => {
+    return request(`${API_ENDPOINTS.SCHEMES}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
   },
-  createSupplierGroup: (payload: { companyId: string; name: string }) => {
-    return request(API_ENDPOINTS.SUPPLIER_GROUPS, {
+  createScheme: (payload: { companyId: string; itemGroupId?: string; customerId?: string; lessPercentage?: number; cdPercentage?: number }) => {
+    return request(API_ENDPOINTS.SCHEMES, {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
-  updateSupplierGroup: (id: string, payload: { name?: string }) => {
-    return request(`${API_ENDPOINTS.SUPPLIER_GROUPS}/${id}`, {
+  updateScheme: (id: string, payload: { itemGroupId?: string; customerId?: string; lessPercentage?: number; cdPercentage?: number }) => {
+    return request(`${API_ENDPOINTS.SCHEMES}/${id}`, {
       method: "PUT",
       body: JSON.stringify(payload),
     });
   },
-  deleteSupplierGroup: (id: string) => {
-    return request(`${API_ENDPOINTS.SUPPLIER_GROUPS}/${id}`, {
+  deleteScheme: (id: string) => {
+    return request(`${API_ENDPOINTS.SCHEMES}/${id}`, {
       method: "DELETE",
     });
   },

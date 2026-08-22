@@ -19,14 +19,22 @@ export interface TableProps<T> {
   isLoading?: boolean;
   skeletonRowsCount?: number;
   onRowClick?: (row: T) => void;
+  pagination?: {
+    currentPage: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
+  };
+  emptyMessage?: string;
 }
 
-export function Table<T extends { id: string | number }>({
+export function Table<T = any>({
   columns,
   data,
   isLoading = false,
   skeletonRowsCount = 5,
   onRowClick,
+  pagination,
+  emptyMessage = "No data available",
 }: TableProps<T>) {
   return (
     <div className="w-full overflow-x-auto rounded-lg border border-gray-200 shadow-sm bg-white">
@@ -37,7 +45,7 @@ export function Table<T extends { id: string | number }>({
             {columns.map((column, idx) => (
               <th
                 key={column.key || `col-${idx}-${column.header || ""}`}
-                className={`px-4 py-3 border-r border-gray-800 last:border-r-0 text-${column.align || "left"} font-medium ${column.className || ""}`}
+                className={`px-4 py-3 border-r border-gray-800 last:border-r-0 text-${column.align || "left"} font-medium text-white ${column.className || ""}`}
               >
                 {column.header}
               </th>
@@ -69,7 +77,7 @@ export function Table<T extends { id: string | number }>({
             data.map((row, rowIndex) => (
               <tr
                 key={
-                  row.id ??
+                  (row as any).id ??
                   (row as any)._id ??
                   `row-${rowIndex}`
                 }
@@ -110,7 +118,7 @@ export function Table<T extends { id: string | number }>({
                   return (
                     <td
                       key={`${
-                        row.id ?? (row as any)._id ?? rowIndex
+                        (row as any).id ?? (row as any)._id ?? rowIndex
                       }-${column.key || colIndex}`}
                       className={`px-4 py-3 border-r border-gray-200 last:border-r-0 text-${column.align || "left"} text-gray-800 ${
                         (column as any).className || ""
@@ -125,12 +133,86 @@ export function Table<T extends { id: string | number }>({
           ) : (
             <tr>
               <td colSpan={columns.length} className="px-4 py-8 text-center text-gray-400">
-                No data available
+                {emptyMessage}
               </td>
             </tr>
           )}
         </tbody>
       </table>
+      
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex items-center justify-center p-4 border-t border-gray-200">
+          <div className="flex items-center gap-1.5 text-sm font-medium">
+            <button
+              onClick={() => pagination.onPageChange(1)}
+              disabled={pagination.currentPage === 1}
+              className="px-3 py-1.5 border border-gray-200 rounded text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            >
+              &laquo; First
+            </button>
+            <button
+              onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
+              disabled={pagination.currentPage === 1}
+              className="px-3 py-1.5 border border-gray-200 rounded text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            >
+              &lsaquo; Back
+            </button>
+            
+            {(() => {
+              const pages = [];
+              const start = Math.max(1, pagination.currentPage - 2);
+              const end = Math.min(pagination.totalPages, start + 4);
+              
+              if (start > 1) {
+                pages.push(
+                  <button key={1} onClick={() => pagination.onPageChange(1)} className="px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50 text-gray-700">1</button>
+                );
+                if (start > 2) {
+                  pages.push(<span key="dots-1" className="px-2 text-gray-400">...</span>);
+                }
+              }
+              
+              for (let i = start; i <= end; i++) {
+                pages.push(
+                  <button
+                    key={i}
+                    onClick={() => pagination.onPageChange(i)}
+                    className={`px-3 py-1.5 border rounded transition-colors ${i === pagination.currentPage ? "bg-black text-white border-black" : "border-gray-200 hover:bg-gray-50 text-gray-700"}`}
+                  >
+                    {i}
+                  </button>
+                );
+              }
+              
+              if (end < pagination.totalPages) {
+                if (end < pagination.totalPages - 1) {
+                  pages.push(<span key="dots-2" className="px-2 text-gray-400">...</span>);
+                }
+                pages.push(
+                  <button key={pagination.totalPages} onClick={() => pagination.onPageChange(pagination.totalPages)} className="px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50 text-gray-700">{pagination.totalPages}</button>
+                );
+              }
+              
+              return pages;
+            })()}
+
+            <button
+              onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
+              disabled={pagination.currentPage === pagination.totalPages}
+              className="px-3 py-1.5 border border-gray-200 rounded text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            >
+              Next &rsaquo;
+            </button>
+            <button
+              onClick={() => pagination.onPageChange(pagination.totalPages)}
+              disabled={pagination.currentPage === pagination.totalPages}
+              className="px-3 py-1.5 border border-gray-200 rounded text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            >
+              Last &raquo;
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

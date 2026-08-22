@@ -25,24 +25,24 @@ async function request<T = any>(
   return data;
 }
 
-export const supplierGroupService = {
-  getSupplierGroups: (companyId: string, page = 1, limit = 10, search = "") => {
-    return request(`${API_ENDPOINTS.SUPPLIER_GROUPS}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
+export const customerService = {
+  getCustomers: (companyId: string, page = 1, limit = 10, search = "") => {
+    return request(`${API_ENDPOINTS.CUSTOMERS}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
   },
-  createSupplierGroup: (payload: { companyId: string; name: string }) => {
-    return request(API_ENDPOINTS.SUPPLIER_GROUPS, {
+  createCustomer: (payload: any) => {
+    return request(API_ENDPOINTS.CUSTOMERS, {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
-  updateSupplierGroup: (id: string, payload: { name?: string }) => {
-    return request(`${API_ENDPOINTS.SUPPLIER_GROUPS}/${id}`, {
+  updateCustomer: (id: string, payload: any) => {
+    return request(`${API_ENDPOINTS.CUSTOMERS}/${id}`, {
       method: "PUT",
       body: JSON.stringify(payload),
     });
   },
-  deleteSupplierGroup: (id: string) => {
-    return request(`${API_ENDPOINTS.SUPPLIER_GROUPS}/${id}`, {
+  deleteCustomer: (id: string) => {
+    return request(`${API_ENDPOINTS.CUSTOMERS}/${id}`, {
       method: "DELETE",
     });
   },

@@ -25,24 +25,26 @@ async function request<T = any>(
   return data;
 }
 
-export const supplierGroupService = {
-  getSupplierGroups: (companyId: string, page = 1, limit = 10, search = "") => {
-    return request(`${API_ENDPOINTS.SUPPLIER_GROUPS}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
+export const openingBillService = {
+  getOpeningBills: (companyId: string, type?: string) => {
+    const params = new URLSearchParams({ companyId });
+    if (type) params.append("type", type);
+    return request(`${API_ENDPOINTS.OPENING_BILLS}?${params.toString()}`);
   },
-  createSupplierGroup: (payload: { companyId: string; name: string }) => {
-    return request(API_ENDPOINTS.SUPPLIER_GROUPS, {
+  createOpeningBill: (payload: any) => {
+    return request(API_ENDPOINTS.OPENING_BILLS, {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
-  updateSupplierGroup: (id: string, payload: { name?: string }) => {
-    return request(`${API_ENDPOINTS.SUPPLIER_GROUPS}/${id}`, {
+  updateOpeningBill: (id: string, payload: any) => {
+    return request(`${API_ENDPOINTS.OPENING_BILLS}/${id}`, {
       method: "PUT",
       body: JSON.stringify(payload),
     });
   },
-  deleteSupplierGroup: (id: string) => {
-    return request(`${API_ENDPOINTS.SUPPLIER_GROUPS}/${id}`, {
+  deleteOpeningBill: (id: string) => {
+    return request(`${API_ENDPOINTS.OPENING_BILLS}/${id}`, {
       method: "DELETE",
     });
   },
