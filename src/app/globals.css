@@ -34,6 +34,17 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
+button, 
+a, 
+select, 
+[role="button"], 
+input[type="submit"], 
+input[type="button"], 
+input[type="checkbox"], 
+input[type="radio"] {
+  cursor: pointer;
+}
+
 /* ===========================================
    THEME CLASSES - Use these in your code
    =========================================== */
