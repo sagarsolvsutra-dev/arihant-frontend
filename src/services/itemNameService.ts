@@ -26,22 +26,22 @@ async function request<T = any>(
 }
 
 export const itemNameService = {
-  createItemName: async (payload: { companyId: string; itemGroupId: string; name: string; isActive?: boolean }) => {
+  createItemName: async (payload: { companyId: string; supplierId: string; name: string; isActive?: boolean }) => {
     return request(API_ENDPOINTS.ITEM_NAMES, {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
-  getItemNames: async (companyId: string, search = "", itemGroupId = "") => {
+  getItemNames: async (companyId: string, search = "", supplierId = "") => {
     let url = `${API_ENDPOINTS.ITEM_NAMES}/company/${companyId}?search=${encodeURIComponent(search)}`;
-    if (itemGroupId) {
-      url += `&itemGroupId=${itemGroupId}`;
+    if (supplierId) {
+      url += `&supplierId=${supplierId}`;
     }
     return request(url);
   },
 
-  updateItemName: async (id: string, payload: { itemGroupId?: string; name?: string; isActive?: boolean }) => {
+  updateItemName: async (id: string, payload: { supplierId?: string; name?: string; isActive?: boolean }) => {
     return request(`${API_ENDPOINTS.ITEM_NAMES}/${id}`, {
       method: "PUT",
       body: JSON.stringify(payload),

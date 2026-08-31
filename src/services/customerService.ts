@@ -26,8 +26,11 @@ async function request<T = any>(
 }
 
 export const customerService = {
-  getCustomers: (companyId: string, page = 1, limit = 10, search = "") => {
-    return request(`${API_ENDPOINTS.CUSTOMERS}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
+  getCustomers: (companyId: string, page = 1, limit = 10, search = "", customerType = "") => {
+    return request(`${API_ENDPOINTS.CUSTOMERS}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&customerType=${encodeURIComponent(customerType)}`);
+  },
+  getCustomerById: (id: string) => {
+    return request(`${API_ENDPOINTS.CUSTOMERS}/${id}`);
   },
   createCustomer: (payload: any) => {
     return request(API_ENDPOINTS.CUSTOMERS, {

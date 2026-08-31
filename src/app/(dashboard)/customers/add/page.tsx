@@ -10,6 +10,7 @@ import { Save, X, Plus, Edit } from "lucide-react";
 import { FormToolbar } from "@/components/ui/FormToolbar";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { toast } from "sonner";
 
 const FieldRow = ({ label, children, required }: any) => (
   <div className="flex items-center text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50/50 min-h-[44px]">
@@ -74,7 +75,7 @@ export default function AddCustomerPage() {
 
       setCustomerGroups(Array.isArray(groupsRes) ? groupsRes : groupsRes.data || []);
       setSalesmen(Array.isArray(salesmenRes) ? salesmenRes : salesmenRes.data || []);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load dropdown data", err);
     }
   };
@@ -84,6 +85,26 @@ export default function AddCustomerPage() {
     setErrors({});
     if (!companyId || !name.trim()) {
       setErrors({ name: "Name is required" });
+      return;
+    }
+    if (mobile.trim() && mobile.trim().length !== 10) {
+      toast.error("Mobile number must be exactly 10 digits");
+      return;
+    }
+    if (phone.trim() && phone.trim().length !== 10) {
+      toast.error("Phone number must be exactly 10 digits");
+      return;
+    }
+    if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) {
+      toast.error("Invalid email format");
+      return;
+    }
+    if (gstNo.trim() && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(gstNo.trim())) {
+      toast.error("Invalid GSTIN format");
+      return;
+    }
+    if (panNo.trim() && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i.test(panNo.trim())) {
+      toast.error("Invalid PAN Number format");
       return;
     }
     setSaving(true);
@@ -115,10 +136,11 @@ export default function AddCustomerPage() {
       };
 
       await customerService.createCustomer(payload);
+      toast.success("Saved successfully");
       router.push("/customers");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to save customer");
+      toast.error("Failed to save customer");
     } finally {
       setSaving(false);
     }
@@ -307,7 +329,8 @@ export default function AddCustomerPage() {
                   <Select
                     options={[
                       { value: "Retailer", label: "Retailer" },
-                      { value: "Wholesaler", label: "Wholesaler" }
+                      { value: "Wholesaler", label: "Wholesaler" },
+                      { value: "Distributor", label: "Distributor" }
                     ]}
                     value={customerType}
                     onChange={setCustomerType}

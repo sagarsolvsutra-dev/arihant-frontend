@@ -29,6 +29,9 @@ export const supplierService = {
   getSuppliers: (companyId: string, page = 1, limit = 10, search = "") => {
     return request(`${API_ENDPOINTS.SUPPLIERS}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
   },
+  getSupplierById: (id: string) => {
+    return request(`${API_ENDPOINTS.SUPPLIERS}/${id}`);
+  },
   createSupplier: (payload: any) => {
     return request(API_ENDPOINTS.SUPPLIERS, {
       method: "POST",

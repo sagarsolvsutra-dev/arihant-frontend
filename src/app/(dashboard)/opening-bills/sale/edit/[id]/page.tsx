@@ -9,6 +9,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { openingBillService } from "@/services/openingBillService";
 import { customerService } from "@/services/customerService";
 import { salesmanService } from "@/services/salesmanService";
+import { toast } from "sonner";
 
 export default function EditSaleOpeningBillPage() {
   const router = useRouter();
@@ -36,10 +37,10 @@ export default function EditSaleOpeningBillPage() {
 
   useEffect(() => {
     if (companyId) {
-      customerService.getCustomers(companyId).then((res) => {
+      customerService.getCustomers(companyId, 1, 1000).then((res) => {
         setCustomers(res.data || res || []);
       });
-      salesmanService.getSalesmen(companyId).then((res) => {
+      salesmanService.getSalesmen(companyId, 1, 1000).then((res) => {
         setSalesmen(res.data || res || []);
       });
     }
@@ -80,7 +81,7 @@ export default function EditSaleOpeningBillPage() {
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!companyId || !customerId || !billDate || !billNumber || !amount) {
-      alert("Please fill all required fields");
+      toast.error("Please fill all required fields");
       return;
     }
 
@@ -97,9 +98,9 @@ export default function EditSaleOpeningBillPage() {
         salesmanId,
       });
       router.push("/opening-bills/sale");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to update bill");
+      toast.error(err.message || "Failed to update bill");
     } finally {
       setSaving(false);
     }

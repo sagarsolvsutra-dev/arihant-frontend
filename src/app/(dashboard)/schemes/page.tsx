@@ -12,11 +12,11 @@ import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { schemeService } from "@/services/schemeService";
+import { toast } from "sonner";
 
 interface SchemeRecord {
   id?: string;
   _id: string;
-  itemGroupId?: { _id: string; name: string };
   customerId?: { _id: string; name: string };
   lessPercentage?: number;
   cdPercentage?: number;
@@ -55,9 +55,10 @@ export default function SchemesPage() {
         setRecords(list.map((i: any) => ({ ...i, id: i._id })));
         setTotalPages(1);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-    } finally {
+      toast.error(err.message || "An error occurred");
+} finally {
       setLoading(false);
     }
   };
@@ -77,9 +78,11 @@ export default function SchemesPage() {
     try {
       await schemeService.deleteScheme(deletingRecord._id);
       loadRecords();
-    } catch (err) {
+      toast.success("Deleted successfully");
+    } catch (err: any) {
       console.error(err);
-    } finally {
+      toast.error(err.message || "An error occurred");
+} finally {
       setIsDeleteOpen(false);
       setDeletingRecord(null);
     }
@@ -91,7 +94,6 @@ export default function SchemesPage() {
   };
 
   const columns = [
-    { key: "itemGroup", header: "Item Group", accessor: (r: SchemeRecord) => r.itemGroupId?.name || "-" },
     { key: "customer", header: "Customer Name", accessor: (r: SchemeRecord) => r.customerId?.name || "-" },
     { key: "lessPercentage", header: "Less %age", accessor: (r: SchemeRecord) => r.lessPercentage != null ? r.lessPercentage.toFixed(2) : "0.00" },
     { key: "cdPercentage", header: "C.D. %age", accessor: (r: SchemeRecord) => r.cdPercentage != null ? r.cdPercentage.toFixed(2) : "0.00" },

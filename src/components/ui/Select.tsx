@@ -58,7 +58,7 @@ export const Select: React.FC<SelectProps> = ({
   }, []);
 
   const updatePosition = () => {
-    if (isOpen && buttonRef.current) {
+    if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       // Calculate position. We use fixed positioning so it moves correctly if parent scrolls (if scroll listener updates it).
       
@@ -213,7 +213,12 @@ export const Select: React.FC<SelectProps> = ({
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onClick={() => {
+          if (!disabled) {
+            if (!isOpen) updatePosition();
+            setIsOpen(!isOpen);
+          }
+        }}
         disabled={disabled}
         className={`w-full flex items-center justify-between px-3 py-2.5 text-sm rounded-lg bg-white transition-all
           ${
@@ -229,10 +234,14 @@ export const Select: React.FC<SelectProps> = ({
       >
         <span
           className={`truncate ${
-            selectedOption ? "text-gray-900 font-medium" : "text-gray-400"
+            selectedOption
+              ? "text-gray-900 font-medium"
+              : finalValue
+              ? "text-gray-700"
+              : "text-gray-400"
           }`}
         >
-          {selectedOption ? selectedOption.label : placeholder}
+          {selectedOption ? selectedOption.label : finalValue ? finalValue : placeholder}
         </span>
         <ChevronDown
           className={`h-4 w-4 text-gray-400 transition-transform shrink-0 ${

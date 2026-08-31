@@ -12,33 +12,34 @@ import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { itemNameService } from "@/services/itemNameService";
-import { itemGroupService } from "@/services/itemGroupService";
+import { supplierService } from "@/services/supplierService";
+import { toast } from "sonner";
 
 interface ItemNameRecord {
   id: string;
   _id?: string;
   name: string;
-  itemGroupId: any;
+  supplierId: any;
   isActive: boolean;
 }
 
 export default function ItemNamesPage() {
   const { selectedCompanyId, isContextLoading } = useCompany();
   const [records, setRecords] = useState<ItemNameRecord[]>([]);
-  const [itemGroups, setItemGroups] = useState<{ _id: string; name: string; isActive?: boolean }[]>([]);
+  const [suppliers, setSuppliers] = useState<{ _id: string; name: string; isActive?: boolean }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Form State
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ItemNameRecord | null>(null);
   const [nameInput, setNameInput] = useState("");
-  const [itemGroupIdInput, setItemGroupIdInput] = useState("");
+  const [supplierIdInput, setSupplierIdInput] = useState("");
   const [isActiveInput, setIsActiveInput] = useState(true);
 
   // Errors
   const [nameError, setNameError] = useState("");
-  const [itemGroupIdError, setItemGroupIdError] = useState("");
+  const [supplierIdError, setSupplierIdError] = useState("");
   const [formAlert, setFormAlert] = useState("");
 
   // Delete State
@@ -50,21 +51,22 @@ export default function ItemNamesPage() {
       if (isContextLoading) setIsLoading(true);
       return;
     }
-    loadItemGroups();
+    loadSuppliers();
     const timer = setTimeout(() => {
       loadRecords();
     }, 300);
     return () => clearTimeout(timer);
   }, [selectedCompanyId, isContextLoading, searchQuery]);
 
-  async function loadItemGroups() {
+  async function loadSuppliers() {
     try {
-      const data = await itemGroupService.getItemGroups(selectedCompanyId!, 1, 100);
+      const data = await supplierService.getSuppliers(selectedCompanyId!, 1, 1000);
       const list = Array.isArray(data) ? data : data.data || [];
-      setItemGroups(list);
-    } catch (e) {
+      setSuppliers(list);
+    } catch (e: any) {
       console.error(e);
-    }
+      toast.error(e.message || "An error occurred");
+}
   }
 
   async function loadRecords() {
@@ -81,9 +83,10 @@ export default function ItemNamesPage() {
       const data = await itemNameService.getItemNames(selectedCompanyId!, searchQuery);
       const list = Array.isArray(data) ? data : data.data || [];
       setRecords(list.map((item: any) => ({ ...item, id: item._id })));
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setRecords([]);
+      toast.error(e.message || "An error occurred");
+setRecords([]);
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +95,7 @@ export default function ItemNamesPage() {
   const validateForm = () => {
     let valid = true;
     setNameError("");
-    setItemGroupIdError("");
+    setSupplierIdError("");
     setFormAlert("");
 
     if (!nameInput.trim()) {
@@ -100,8 +103,8 @@ export default function ItemNamesPage() {
       valid = false;
     }
 
-    if (!itemGroupIdInput) {
-      setItemGroupIdError("Item Group is required");
+    if (!supplierIdInput) {
+      setSupplierIdError("Supplier is required");
       valid = false;
     }
 
@@ -115,7 +118,7 @@ export default function ItemNamesPage() {
     const payload = {
       companyId: selectedCompanyId,
       name: nameInput.trim(),
-      itemGroupId: itemGroupIdInput,
+      supplierId: supplierIdInput,
       isActive: isActiveInput,
     };
 
@@ -136,7 +139,7 @@ export default function ItemNamesPage() {
   const handleEditClick = (record: ItemNameRecord) => {
     setEditingRecord(record);
     setNameInput(record.name);
-    setItemGroupIdInput(record.itemGroupId?._id || record.itemGroupId);
+    setSupplierIdInput(record.supplierId?._id || record.supplierId);
     setIsActiveInput(record.isActive);
     setIsFormOpen(true);
   };
@@ -155,17 +158,17 @@ export default function ItemNamesPage() {
       setDeletingRecord(null);
       loadRecords();
     } catch (e: any) {
-      alert(e.message || "Failed to delete item name");
+      toast.error(e.message || "Failed to delete item name");
     }
   };
 
   const resetForm = () => {
     setEditingRecord(null);
     setNameInput("");
-    setItemGroupIdInput("");
+    setSupplierIdInput("");
     setIsActiveInput(true);
     setNameError("");
-    setItemGroupIdError("");
+    setSupplierIdError("");
     setFormAlert("");
   };
 
@@ -183,9 +186,9 @@ export default function ItemNamesPage() {
       className: "font-semibold text-gray-900",
     },
     {
-      key: "group",
-      header: "GROUP",
-      accessor: (row: ItemNameRecord) => row.itemGroupId?.name || "-",
+      key: "supplier",
+      header: "SUPPLIER",
+      accessor: (row: ItemNameRecord) => row.supplierId?.name || "-",
       className: "text-gray-600",
     },
     {
@@ -294,15 +297,15 @@ export default function ItemNamesPage() {
           )}
 
           <Select
-            label="Item Group"
-            options={itemGroups
-              .filter(g => g.isActive !== false || g._id === itemGroupIdInput)
-              .map(g => ({ value: g._id, label: g.name }))}
-            value={itemGroupIdInput}
-            onChange={setItemGroupIdInput}
-            error={itemGroupIdError}
+            label="Supplier"
+            options={suppliers
+              .filter(s => s.isActive !== false || s._id === supplierIdInput)
+              .map(s => ({ value: s._id, label: s.name }))}
+            value={supplierIdInput}
+            onChange={setSupplierIdInput}
+            error={supplierIdError}
             isRequired
-            placeholder="Select Group"
+            placeholder="Select Supplier"
           />
 
           <Input

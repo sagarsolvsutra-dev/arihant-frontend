@@ -11,6 +11,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { supplierGroupService } from "@/services/supplierGroupService";
+import { toast } from "sonner";
 
 interface SupplierGroupRecord {
   id: string;
@@ -70,9 +71,10 @@ export default function SupplierGroupsPage() {
         setGroups(list.map((item: any) => ({ ...item, id: item._id })));
         setTotalPages(1);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setGroups([]);
+      toast.error(e.message || "An error occurred");
+setGroups([]);
     } finally {
       setIsLoading(false);
     }
@@ -134,7 +136,7 @@ export default function SupplierGroupsPage() {
       setDeletingRecord(null);
       loadSupplierGroups();
     } catch (e: any) {
-      alert(e.message || "Failed to delete supplier group");
+      toast.error(e.message || "Failed to delete supplier group");
     }
   };
 

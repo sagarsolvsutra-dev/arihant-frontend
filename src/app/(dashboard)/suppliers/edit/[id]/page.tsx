@@ -9,13 +9,14 @@ import { Save, X, Plus, Edit, List } from "lucide-react";
 import { FormToolbar } from "@/components/ui/FormToolbar";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { toast } from "sonner";
 
 const FieldRow = ({ label, children, required }: any) => (
-  <div className="flex items-center text-sm border-b border-gray-100 last:border-0 hover:bg-blue-50/30 min-h-[44px]">
-    <div className="w-40 px-4 py-2 font-medium text-gray-700 bg-gray-50 flex items-center h-full border-r border-gray-100">
+  <div className="flex flex-col sm:flex-row sm:items-center text-sm border-b border-gray-100 last:border-0 hover:bg-blue-50/30 min-h-[44px]">
+    <div className="w-full sm:w-40 px-4 py-2 font-medium text-gray-700 bg-gray-50 flex items-center sm:h-full border-b sm:border-b-0 sm:border-r border-gray-100">
       {label}
     </div>
-    <div className="flex-1 px-4 py-1.5 flex items-center gap-2">
+    <div className="flex-1 px-4 py-1.5 flex items-center gap-2 w-full">
       {children}
       {required && <span className="text-red-500 font-bold text-lg">*</span>}
     </div>
@@ -67,16 +68,13 @@ export default function EditSupplierPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [groupsRes, supplierDataRes] = await Promise.all([
+      const [groupsRes, record] = await Promise.all([
         supplierGroupService.getSupplierGroups(companyId!, 1, 1000),
-        supplierService.getSuppliers(companyId!)
+        supplierService.getSupplierById(supplierId)
       ]);
-      
+
       setSupplierGroups(Array.isArray(groupsRes) ? groupsRes : groupsRes.data || []);
-      
-      const list = Array.isArray(supplierDataRes) ? supplierDataRes : supplierDataRes.data || [];
-      const record = list.find((c: any) => c._id === supplierId);
-      
+
       if (record) {
         setName(record.name || "");
         setSupplierGroupId(record.supplierGroupId?._id || record.supplierGroupId || "");
@@ -94,9 +92,14 @@ export default function EditSupplierPage() {
         setBalanceMethod(record.balanceMethod || "Bill by bill");
         setCreditDays(record.creditDays?.toString() || "0");
         setSupplierActive(record.isActive !== false);
+      } else {
+        toast.error("Supplier not found");
+        router.push("/suppliers");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load supplier", err);
+      toast.error(err.message || "Failed to load supplier");
+      router.push("/suppliers");
     } finally {
       setLoading(false);
     }
@@ -107,6 +110,30 @@ export default function EditSupplierPage() {
     setErrors({});
     if (!companyId || !name.trim()) {
       setErrors({ name: "Name is required" });
+      return;
+    }
+    if (mobile.trim() && mobile.trim().length !== 10) {
+      toast.error("Mobile number must be exactly 10 digits");
+      return;
+    }
+    if (phone.trim() && phone.trim().length !== 10) {
+      toast.error("Phone [1] number must be exactly 10 digits");
+      return;
+    }
+    if (phone2.trim() && phone2.trim().length !== 10) {
+      toast.error("Phone [2] number must be exactly 10 digits");
+      return;
+    }
+    if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) {
+      toast.error("Invalid email format");
+      return;
+    }
+    if (gstNo.trim() && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(gstNo.trim())) {
+      toast.error("Invalid GSTIN format");
+      return;
+    }
+    if (panNo.trim() && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i.test(panNo.trim())) {
+      toast.error("Invalid PAN Number format");
       return;
     }
     setSaving(true);
@@ -131,10 +158,11 @@ export default function EditSupplierPage() {
       if (creditDays) payload.creditDays = Number(creditDays);
 
       await supplierService.updateSupplier(supplierId, payload);
+      toast.success("Saved successfully");
       router.push("/suppliers");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to save supplier");
+      toast.error("Failed to save supplier");
     } finally {
       setSaving(false);
     }
@@ -169,8 +197,8 @@ export default function EditSupplierPage() {
         <div className="w-full max-w-4xl bg-white border border-gray-300 shadow-md">
           <div className="flex flex-col w-full">
             
-            <div className="flex items-start border-b border-gray-200">
-              <div className="flex-1 border-r border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-start border-b border-gray-200">
+              <div className="flex-1 border-b sm:border-b-0 sm:border-r border-gray-200">
                 <FieldRow label="Group Name">
                   <div className="max-w-xl w-full flex gap-2 items-center">
                     <Select
@@ -197,8 +225,8 @@ export default function EditSupplierPage() {
                 </FieldRow>
               </div>
 
-              <div className="w-48 p-4 flex flex-col items-center justify-center h-[100px]">
-                <span className="text-sm text-gray-700 mb-2 font-medium">Supplier Active</span>
+              <div className="w-full sm:w-48 p-4 flex flex-row sm:flex-col items-center justify-center sm:h-[100px] gap-2">
+                <span className="text-sm text-gray-700 sm:mb-2 font-medium">Supplier Active</span>
                 <input
                   type="checkbox"
                   className="w-5 h-5 border-gray-400 rounded cursor-pointer accent-blue-600"

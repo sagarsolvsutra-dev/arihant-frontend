@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Search, AlertCircle, RefreshCw } from "lucide-react";
+import { Plus, AlertCircle, RefreshCw } from "lucide-react";
 import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -10,40 +10,32 @@ import { Table } from "@/components/ui/Table";
 import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
-import { itemGroupService } from "@/services/itemGroupService";
+import { godownGroupService } from "@/services/godownGroupService";
+import { toast } from "sonner";
 
-interface ItemGroupRecord {
+interface GodownGroupRecord {
   id: string;
   _id?: string;
   name: string;
-  shortName?: string;
-  commissionRate: number;
-  isActive: boolean;
 }
 
-export default function ItemGroupsPage() {
+export default function GodownGroupsPage() {
   const { selectedCompanyId, isContextLoading } = useCompany();
-  const [groups, setGroups] = useState<ItemGroupRecord[]>([]);
+  const [groups, setGroups] = useState<GodownGroupRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Form State
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<ItemGroupRecord | null>(null);
+  const [editingRecord, setEditingRecord] = useState<GodownGroupRecord | null>(null);
   const [nameInput, setNameInput] = useState("");
-  const [shortInput, setShortInput] = useState("");
-  const [commissionInput, setCommissionInput] = useState("0.00");
-  const [isActiveInput, setIsActiveInput] = useState(true);
 
-  // Errors
   const [nameError, setNameError] = useState("");
   const [formAlert, setFormAlert] = useState("");
 
-  // Delete State
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [deletingRecord, setDeletingRecord] = useState<ItemGroupRecord | null>(null);
+  const [deletingRecord, setDeletingRecord] = useState<GodownGroupRecord | null>(null);
 
   useEffect(() => {
     if (isContextLoading || !selectedCompanyId) {
@@ -51,12 +43,12 @@ export default function ItemGroupsPage() {
       return;
     }
     const timer = setTimeout(() => {
-      loadItemGroups();
+      loadGodownGroups();
     }, 300);
     return () => clearTimeout(timer);
   }, [selectedCompanyId, isContextLoading, page, searchQuery]);
 
-  async function loadItemGroups() {
+  async function loadGodownGroups() {
     setIsLoading(true);
     const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(selectedCompanyId || "");
 
@@ -67,7 +59,7 @@ export default function ItemGroupsPage() {
     }
 
     try {
-      const data = await itemGroupService.getItemGroups(selectedCompanyId, page, 10, searchQuery);
+      const data = await godownGroupService.getGodownGroups(selectedCompanyId, page, 10, searchQuery);
       if (data.pagination) {
         setGroups(data.data.map((item: any) => ({ ...item, id: item._id })));
         setTotalPages(data.pagination.totalPages || 1);
@@ -76,8 +68,9 @@ export default function ItemGroupsPage() {
         setGroups(list.map((item: any) => ({ ...item, id: item._id })));
         setTotalPages(1);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      toast.error(e.message || "An error occurred");
       setGroups([]);
     } finally {
       setIsLoading(false);
@@ -104,35 +97,29 @@ export default function ItemGroupsPage() {
     const payload = {
       companyId: selectedCompanyId,
       name: nameInput.trim(),
-      shortName: shortInput.trim() || undefined,
-      commissionRate: parseFloat(commissionInput) || 0,
-      isActive: isActiveInput,
     };
 
     try {
       if (editingRecord) {
-        await itemGroupService.updateItemGroup(editingRecord.id, payload);
+        await godownGroupService.updateGodownGroup(editingRecord.id, payload);
       } else {
-        await itemGroupService.createItemGroup(payload);
+        await godownGroupService.createGodownGroup(payload);
       }
       setIsFormOpen(false);
       resetForm();
-      loadItemGroups();
+      loadGodownGroups();
     } catch (e: any) {
-      setFormAlert(e.message || "Failed to save Item Group");
+      setFormAlert(e.message || "Failed to save Godown Group");
     }
   };
 
-  const handleEditClick = (record: ItemGroupRecord) => {
+  const handleEditClick = (record: GodownGroupRecord) => {
     setEditingRecord(record);
     setNameInput(record.name);
-    setShortInput(record.shortName || "");
-    setCommissionInput(record.commissionRate.toString());
-    setIsActiveInput(record.isActive);
     setIsFormOpen(true);
   };
 
-  const handleDeleteClick = (record: ItemGroupRecord) => {
+  const handleDeleteClick = (record: GodownGroupRecord) => {
     setDeletingRecord(record);
     setIsDeleteOpen(true);
   };
@@ -141,21 +128,18 @@ export default function ItemGroupsPage() {
     if (!deletingRecord) return;
 
     try {
-      await itemGroupService.deleteItemGroup(deletingRecord.id);
+      await godownGroupService.deleteGodownGroup(deletingRecord.id);
       setIsDeleteOpen(false);
       setDeletingRecord(null);
-      loadItemGroups();
+      loadGodownGroups();
     } catch (e: any) {
-      alert(e.message || "Failed to delete item group");
+      toast.error(e.message || "Failed to delete godown group");
     }
   };
 
   const resetForm = () => {
     setEditingRecord(null);
     setNameInput("");
-    setShortInput("");
-    setCommissionInput("0.00");
-    setIsActiveInput(true);
     setNameError("");
     setFormAlert("");
   };
@@ -169,46 +153,19 @@ export default function ItemGroupsPage() {
     {
       key: "srno",
       header: "SR. NO.",
-      accessor: (row: ItemGroupRecord, index: number) => index + 1,
+      accessor: (row: GodownGroupRecord, index: number) => index + 1,
       className: "w-20 text-center font-semibold text-gray-500",
     },
     {
       key: "name",
       header: "GROUP NAME",
-      accessor: (row: ItemGroupRecord) => row.name,
+      accessor: (row: GodownGroupRecord) => row.name,
       className: "font-semibold text-gray-900",
-    },
-    {
-      key: "shortName",
-      header: "SHORT NAME",
-      accessor: (row: ItemGroupRecord) => row.shortName || "-",
-      className: "text-gray-600",
-    },
-    {
-      key: "commissionRate",
-      header: "COMMISSION RATE (%)",
-      accessor: (row: ItemGroupRecord) => `${row.commissionRate.toFixed(2)}%`,
-      className: "text-gray-700 text-center font-medium",
-    },
-    {
-      key: "status",
-      header: "STATUS",
-      accessor: (row: ItemGroupRecord) => (
-        <span
-          className={`px-2.5 py-1 rounded-full text-xs font-bold ${row.isActive
-              ? "bg-green-50 text-green-700 border border-green-200"
-              : "bg-red-50 text-red-700 border border-red-200"
-            }`}
-        >
-          {row.isActive ? "Active" : "Inactive"}
-        </span>
-      ),
-      className: "text-center",
     },
     {
       key: "actions",
       header: "ACTIONS",
-      accessor: (row: ItemGroupRecord) => (
+      accessor: (row: GodownGroupRecord) => (
         <div className="flex items-center justify-center gap-2">
           <EditButton onClick={() => handleEditClick(row)} />
           <DeleteButton onClick={() => handleDeleteClick(row)} />
@@ -220,21 +177,20 @@ export default function ItemGroupsPage() {
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-5">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            Item Groups (આઇટમ ગ્રુપ્સ લિસ્ટ)
+            Godown Groups (ગોડાઉન ગ્રુપ્સ લિસ્ટ)
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage product categories and group-level default attributes.
+            Group godowns/warehouses for stock management and reporting.
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <Button
             variant="outline"
             size="sm"
-            onClick={loadItemGroups}
+            onClick={loadGodownGroups}
             className="px-2.5 hover:bg-gray-50"
             title="Refresh"
           >
@@ -250,26 +206,24 @@ export default function ItemGroupsPage() {
             className="bg-black hover:bg-gray-900 text-white border-none cursor-pointer"
             leftIcon={<Plus className="h-4 w-4" />}
           >
-            Add Item Group
+            Add Godown Group
           </Button>
         </div>
       </div>
 
-      {/* Search Input */}
       <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl border border-gray-100 shadow-xs">
         <SearchInput
-          placeholder="Search by group name or short name..."
+          placeholder="Search by group name..."
           value={searchQuery}
           onChange={handleSearchChange}
         />
       </div>
 
-      {/* Main Table area */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-xs p-6">
-        <Table 
-          columns={columns} 
-          data={groups} 
-          isLoading={isLoading} 
+        <Table
+          columns={columns}
+          data={groups}
+          isLoading={isLoading}
           pagination={{
             currentPage: page,
             totalPages,
@@ -278,11 +232,10 @@ export default function ItemGroupsPage() {
         />
       </div>
 
-      {/* Add / Edit Form Dialog */}
       <Dialog
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
-        title={editingRecord ? "Edit Item Group" : "Add Item Group"}
+        title={editingRecord ? "Edit Godown Group" : "Add Godown Group"}
         footer={
           <>
             <Button variant="ghost" size="sm" onClick={() => setIsFormOpen(false)}>
@@ -308,7 +261,7 @@ export default function ItemGroupsPage() {
 
           <Input
             label="Group Name"
-            placeholder="e.g. VALSAD"
+            placeholder="e.g. VALSAD WAREHOUSES"
             value={nameInput}
             onChange={(e) => {
               setNameInput(e.target.value);
@@ -317,45 +270,15 @@ export default function ItemGroupsPage() {
             isRequired
             error={nameError}
           />
-
-          <Input
-            label="Short Name"
-            placeholder="e.g. VAL"
-            value={shortInput}
-            onChange={(e) => setShortInput(e.target.value)}
-          />
-
-          <Input
-            label="Commission Rate (%)"
-            type="number"
-            step="0.01"
-            placeholder="0.00"
-            value={commissionInput}
-            onChange={(e) => setCommissionInput(e.target.value)}
-          />
-
-          <div className="flex items-center gap-2 mt-2">
-            <input
-              type="checkbox"
-              id="isActive"
-              checked={isActiveInput}
-              onChange={(e) => setIsActiveInput(e.target.checked)}
-              className="rounded border-gray-300 text-black focus:ring-black h-4 w-4 cursor-pointer"
-            />
-            <label htmlFor="isActive" className="text-xs font-semibold text-gray-700 cursor-pointer select-none">
-              Group Active (એક્ટિવ છે)
-            </label>
-          </div>
         </form>
       </Dialog>
 
-      {/* Delete Confirmation */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={confirmDelete}
-        title="Delete Item Group"
-        message={`Are you sure you want to delete the item group "${deletingRecord?.name}"? This action cannot be undone.`}
+        title="Delete Godown Group"
+        message={`Are you sure you want to delete the godown group "${deletingRecord?.name}"? This action cannot be undone.`}
       />
     </div>
   );

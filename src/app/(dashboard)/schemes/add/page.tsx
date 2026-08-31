@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { useCompany } from "@/context/CompanyContext";
 import { schemeService } from "@/services/schemeService";
 import { customerService } from "@/services/customerService";
-import { itemGroupService } from "@/services/itemGroupService";
 import { Save, X, Plus, Edit, List } from "lucide-react";
 import { FormToolbar } from "@/components/ui/FormToolbar";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { toast } from "sonner";
 
 const FieldRow = ({ label, children, required }: any) => (
   <div className="flex items-center text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50/50 min-h-[44px]">
@@ -33,10 +33,8 @@ export default function AddSchemePage() {
 
   // Data sources for dropdowns
   const [customers, setCustomers] = useState<{ _id: string; name: string }[]>([]);
-  const [itemGroups, setItemGroups] = useState<{ _id: string; name: string }[]>([]);
 
   // Form State
-  const [itemGroupId, setItemGroupId] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [lessPercentage, setLessPercentage] = useState("0.00");
   const [cdPercentage, setCdPercentage] = useState("0.00");
@@ -49,13 +47,9 @@ export default function AddSchemePage() {
 
   async function loadDropdownData() {
     try {
-      const [custRes, groupRes] = await Promise.all([
-        customerService.getCustomers(companyId!, 1, 1000),
-        itemGroupService.getItemGroups(companyId!, 1, 1000)
-      ]);
+      const custRes = await customerService.getCustomers(companyId!, 1, 1000);
       setCustomers(Array.isArray(custRes) ? custRes : custRes.data || []);
-      setItemGroups(Array.isArray(groupRes) ? groupRes : groupRes.data || []);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load dropdown data", err);
     }
   }
@@ -68,13 +62,13 @@ export default function AddSchemePage() {
     try {
       const payload: any = {
         companyId,
-        itemGroupId: itemGroupId || null,
         customerId: customerId || null,
         lessPercentage: parseFloat(lessPercentage) || 0,
         cdPercentage: parseFloat(cdPercentage) || 0,
       };
 
       await schemeService.createScheme(payload);
+      toast.success("Saved successfully");
       router.push("/schemes");
     } catch (err: any) {
       console.error(err);
@@ -103,17 +97,6 @@ export default function AddSchemePage() {
             </div>
           )}
           <div className="flex flex-col w-full">
-            <FieldRow label="Item Group">
-              <div className="w-full max-w-sm">
-                <Select
-                  value={itemGroupId}
-                  onChange={(val) => setItemGroupId(val)}
-                  options={[{ value: "", label: "Select Item Group.." }, ...itemGroups.map(g => ({ value: g._id, label: g.name }))]}
-                  className="w-full"
-                />
-              </div>
-            </FieldRow>
-
             <FieldRow label="Customer Name">
               <div className="w-full max-w-sm">
                 <Select

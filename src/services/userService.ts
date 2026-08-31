@@ -25,7 +25,7 @@ async function request<T = any>(
   return data;
 }
 
-const USERS_API_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/users`;
+const USERS_API_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"}/users`;
 
 export const userService = {
   getUsers: () => {

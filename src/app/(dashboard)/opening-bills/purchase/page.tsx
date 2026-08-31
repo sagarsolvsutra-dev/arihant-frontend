@@ -14,11 +14,11 @@ import { useRouter } from "next/navigation";
 interface OpeningBillRecord {
   id?: string;
   _id: string;
-  type: "customer" | "supplier";
-  partyName: string;
+  type: "sale" | "purchase";
+  supplierId?: { _id: string; name: string } | string;
   billDate: string;
-  billNumber: string;
-  amount: number;
+  billNo: string;
+  totalAmount: number;
   notes?: string;
 }
 
@@ -41,7 +41,7 @@ export default function PurchaseOpeningBillsPage() {
     if (!companyId) return;
     setLoading(true);
     try {
-      const data = await openingBillService.getOpeningBills(companyId, "supplier");
+      const data = await openingBillService.getOpeningBills(companyId, "purchase");
       const list = Array.isArray(data) ? data : data.data || [];
       setRecords(list.map((i: any) => ({ ...i, id: i._id })));
     } catch (err) {
@@ -64,20 +64,23 @@ export default function PurchaseOpeningBillsPage() {
     }
   };
 
+  const partyName = (r: OpeningBillRecord) =>
+    typeof r.supplierId === "string" ? r.supplierId : r.supplierId?.name || "-";
+
   const filtered = records.filter((r) => {
     const q = searchQuery.toLowerCase();
-    return r.partyName.toLowerCase().includes(q) || r.billNumber.toLowerCase().includes(q);
+    return partyName(r).toLowerCase().includes(q) || (r.billNo || "").toLowerCase().includes(q);
   });
 
   const columns = [
-    { key: "supplier", header: "Supplier Name", accessor: (r: OpeningBillRecord) => r.partyName },
-    { key: "invoice_no", header: "Invoice No.", accessor: (r: OpeningBillRecord) => r.billNumber },
-    { key: "invoice_date", header: "Invoice Date", accessor: (r: OpeningBillRecord) => r.billDate },
+    { key: "supplier", header: "Supplier Name", accessor: partyName },
+    { key: "invoice_no", header: "Invoice No.", accessor: (r: OpeningBillRecord) => r.billNo },
+    { key: "invoice_date", header: "Invoice Date", accessor: (r: OpeningBillRecord) => r.billDate ? new Date(r.billDate).toLocaleDateString("en-GB") : "-" },
     {
       key: "amount",
       header: "Amount (₹)",
       accessor: (r: OpeningBillRecord) =>
-        r.amount != null ? `₹${r.amount.toLocaleString("en-IN")}` : "-",
+        r.totalAmount != null ? `₹${r.totalAmount.toLocaleString("en-IN")}` : "-",
     },
     {
       key: "actions",
@@ -136,7 +139,7 @@ export default function PurchaseOpeningBillsPage() {
         }}
         onConfirm={confirmDelete}
         title="Delete Opening Bill"
-        message={`Delete bill "${deletingRecord?.billNumber}" for "${deletingRecord?.partyName}"?`}
+        message={`Delete bill "${deletingRecord?.billNo}"${deletingRecord ? ` for "${partyName(deletingRecord)}"` : ""}?`}
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"

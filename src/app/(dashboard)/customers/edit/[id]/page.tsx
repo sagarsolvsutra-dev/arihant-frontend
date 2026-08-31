@@ -10,6 +10,7 @@ import { Save, X, Plus, Edit } from "lucide-react";
 import { FormToolbar } from "@/components/ui/FormToolbar";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { toast } from "sonner";
 
 const FieldRow = ({ label, children, required }: any) => (
   <div className="flex items-center text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50/50 min-h-[44px]">
@@ -71,17 +72,14 @@ export default function EditCustomerPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [groupsRes, salesmenRes, customerDataRes] = await Promise.all([
+      const [groupsRes, salesmenRes, record] = await Promise.all([
         customerGroupService.getCustomerGroups(companyId!, 1, 1000),
         salesmanService.getSalesmen(companyId!, 1, 1000),
-        customerService.getCustomers(companyId!) // Replace with getCustomerById if available
+        customerService.getCustomerById(customerId)
       ]);
 
       setCustomerGroups(Array.isArray(groupsRes) ? groupsRes : groupsRes.data || []);
       setSalesmen(Array.isArray(salesmenRes) ? salesmenRes : salesmenRes.data || []);
-
-      const list = Array.isArray(customerDataRes) ? customerDataRes : customerDataRes.data || [];
-      const record = list.find((c: any) => c._id === customerId);
 
       if (record) {
         setCustomerGroupId(record.customerGroupId?._id || record.customerGroupId || "");
@@ -107,12 +105,12 @@ export default function EditCustomerPage() {
         setSalesmanId(record.salesmanId || "");
         setRouteNo(record.routeNo || "");
       } else {
-        alert("Customer not found");
+        toast.error("Customer not found");
         router.push("/customers");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load customer data", err);
-      alert("Failed to load customer");
+      toast.error("Failed to load customer");
       router.push("/customers");
     } finally {
       setLoading(false);
@@ -124,6 +122,26 @@ export default function EditCustomerPage() {
     setErrors({});
     if (!companyId || !name.trim()) {
       setErrors({ name: "Name is required" });
+      return;
+    }
+    if (mobile.trim() && mobile.trim().length !== 10) {
+      toast.error("Mobile number must be exactly 10 digits");
+      return;
+    }
+    if (phone.trim() && phone.trim().length !== 10) {
+      toast.error("Phone number must be exactly 10 digits");
+      return;
+    }
+    if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) {
+      toast.error("Invalid email format");
+      return;
+    }
+    if (gstNo.trim() && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(gstNo.trim())) {
+      toast.error("Invalid GSTIN format");
+      return;
+    }
+    if (panNo.trim() && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i.test(panNo.trim())) {
+      toast.error("Invalid PAN Number format");
       return;
     }
     setSaving(true);
@@ -154,10 +172,11 @@ export default function EditCustomerPage() {
       };
 
       await customerService.updateCustomer(customerId, payload);
+      toast.success("Saved successfully");
       router.push("/customers");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to update customer");
+      toast.error("Failed to update customer");
     } finally {
       setSaving(false);
     }
@@ -356,7 +375,8 @@ export default function EditCustomerPage() {
                   <Select
                     options={[
                       { value: "Retailer", label: "Retailer" },
-                      { value: "Wholesaler", label: "Wholesaler" }
+                      { value: "Wholesaler", label: "Wholesaler" },
+                      { value: "Distributor", label: "Distributor" }
                     ]}
                     value={customerType}
                     onChange={setCustomerType}

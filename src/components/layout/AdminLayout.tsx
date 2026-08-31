@@ -17,6 +17,9 @@ import {
   ArrowLeft,
   User as UserIcon,
   FileText,
+  Menu,
+  X,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
@@ -36,7 +39,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isMastersOpen, setIsMastersOpen] = useState(false);
   const [sidebarView, setSidebarView] = useState<"main" | "masters">("main");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close the mobile sidebar drawer whenever the route changes
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [pathname]);
 
   // Close user menu on click outside
   useEffect(() => {
@@ -57,7 +66,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   // Automatically switch sidebar view to "masters" if the pathname matches a master page
   useEffect(() => {
-    const masterPaths = ["/hsn", "/items", "/item-groups", "/item-names", "/item-sub-groups", "/customers", "/customer-groups", "/suppliers", "/supplier-groups", "/salesmans", "/schemes"];
+    const masterPaths = ["/hsn", "/items", "/item-names", "/item-sub-groups", "/customers", "/customer-groups", "/suppliers", "/supplier-groups", "/godowns", "/godown-groups", "/salesmen", "/schemes", "/opening-bills/sale", "/opening-bills/purchase"];
     if (masterPaths.some(path => pathname === path || pathname?.startsWith(path))) {
       setSidebarView("masters");
     }
@@ -90,7 +99,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       if (token) {
         try {
           await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/logout`,
+            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"}/auth/logout`,
             {
               method: "POST",
               headers: {
@@ -175,14 +184,28 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           label: "Purchase (ખરીદ)",
           englishLabel: "Purchase",
           icon: <ShoppingBag className="h-5 w-5" />,
-          href: "#",
+          href: "/purchase",
         },
         {
           id: "ca-sell",
           label: "Sell (વેચાણ)",
           englishLabel: "Sell",
           icon: <Tag className="h-5 w-5" />,
-          href: "#",
+          href: "/sale",
+        },
+        {
+          id: "ca-purchase-return",
+          label: "Purchase Return",
+          englishLabel: "Purchase Return",
+          icon: <RotateCcw className="h-5 w-5" />,
+          href: "/purchase-return",
+        },
+        {
+          id: "ca-sale-return",
+          label: "Sale Return",
+          englishLabel: "Sale Return",
+          icon: <RotateCcw className="h-5 w-5" />,
+          href: "/sale-return",
         },
         baseMenu[1],
       ];
@@ -197,10 +220,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   const getFormattedDate = () => {
     const options: Intl.DateTimeFormatOptions = {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
+      day: "2-digit", month: "2-digit", year: "numeric",
     };
     return new Date().toLocaleDateString("en-GB", options);
   };
@@ -211,14 +231,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     icon: React.ReactNode;
     href: string;
   }) => {
-    const isActive = pathname === item.href;
+    const isActive = pathname === item.href || (item.href !== "/" && item.href !== "#" && pathname?.startsWith(`${item.href}/`));
     return (
       <Link
         key={item.id}
         href={item.href}
         className={`w-full py-2 px-3 rounded-lg text-xs font-semibold text-center border transition-all duration-200 ${isActive
-            ? "bg-black text-white border-black font-bold"
-            : "bg-gray-100 hover:bg-gray-200 text-gray-800 border-gray-300/80 hover:border-gray-450 font-semibold"
+          ? "bg-black text-white border-black font-bold"
+          : "bg-gray-100 hover:bg-gray-200 text-gray-800 border-gray-300/80 hover:border-gray-450 font-semibold"
           }`}
       >
         {item.label}
@@ -228,14 +248,35 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   return (
     <div className="flex h-screen bg-[#fafafa] overflow-hidden text-gray-800 font-sans">
+      {/* Mobile sidebar backdrop */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 sidebar flex flex-col justify-between shrink-0 overflow-hidden relative border-r border-gray-200 bg-white">
+      <aside
+        className={`w-64 sidebar flex flex-col justify-between shrink-0 overflow-hidden border-r border-gray-200 bg-white
+          fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out
+          lg:static lg:translate-x-0
+          ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+      >
+        {/* Mobile-only close button */}
+        <button
+          type="button"
+          onClick={() => setMobileSidebarOpen(false)}
+          className="lg:hidden absolute top-3 right-3 z-10 p-1.5 rounded-full text-gray-500 hover:bg-gray-100 transition-colors"
+        >
+          <X className="h-5 w-5" />
+        </button>
         <div className="flex-1 relative w-full overflow-hidden">
           {/* Main Menu Panel */}
           <div
             className={`absolute inset-0 flex flex-col justify-between pb-4 transition-all duration-300 ease-in-out ${sidebarView === "main"
-                ? "translate-x-0 opacity-100 pointer-events-auto"
-                : "-translate-x-full opacity-0 pointer-events-none"
+              ? "translate-x-0 opacity-100 pointer-events-auto"
+              : "-translate-x-full opacity-0 pointer-events-none"
               }`}
           >
             <div className="flex flex-col gap-6 py-5">
@@ -285,8 +326,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           {/* Masters Panel */}
           <div
             className={`absolute inset-0 flex flex-col overflow-hidden bg-white transition-all duration-300 ease-in-out ${sidebarView === "masters"
-                ? "translate-x-0 opacity-100 pointer-events-auto"
-                : "translate-x-full opacity-0 pointer-events-none"
+              ? "translate-x-0 opacity-100 pointer-events-auto"
+              : "translate-x-full opacity-0 pointer-events-none"
               }`}
           >
             {/* Masters Dark Header */}
@@ -304,19 +345,20 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             {/* Masters Sub-menu list styled as screenshot */}
             <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2 bg-[#f9fafb]">
               {[
+                { label: "Suppliers", href: "/suppliers" },
+                { label: "Supplier Groups", href: "/supplier-groups" },
+                { label: "Godowns", href: "/godowns" },
+                { label: "Godown Groups", href: "/godown-groups" },
                 { label: "Items / M.R.Ps.", href: "/items" },
                 { label: "HSN Codes", href: "/hsn" },
-                { label: "Item Groups", href: "/item-groups" },
                 { label: "Item Names", href: "/item-names" },
                 { label: "Item Sub Groups", href: "/item-sub-groups" },
                 { label: "Customers", href: "/customers" },
                 { label: "Customer Groups", href: "/customer-groups" },
-                { label: "Suppliers", href: "/suppliers" },
-                { label: "Supplier Groups", href: "/supplier-groups" },
                 { label: "Salesmans", href: "/salesmen" },
                 { label: "Schemes", href: "/schemes" },
-                { label: "Opening Pending Bill", href: "/opening-bills/sale" },
-                { label: "Opening Pending Bill (Supp)", href: "/opening-bills/purchase" },
+                { label: "Opening Pending of Sale Bill", href: "/opening-bills/sale" },
+                { label: "Opening Pending of Purchase Bill", href: "/opening-bills/purchase" },
               ].map((sub, idx) => {
                 const isSubActive = pathname === sub.href || pathname.startsWith(`${sub.href}/`);
                 return (
@@ -324,8 +366,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     key={idx}
                     href={sub.href}
                     className={`w-full py-2 px-3 rounded-lg text-xs font-semibold text-center border transition-all duration-150 ${isSubActive
-                        ? "bg-black text-white border-black"
-                        : "bg-gray-100 hover:bg-gray-200 text-gray-800 border-gray-300/80 hover:border-gray-450"
+                      ? "bg-black text-white border-black"
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-800 border-gray-300/80 hover:border-gray-450"
                       }`}
                   >
                     {sub.label}
@@ -340,22 +382,31 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       {/* Main Workspace Frame */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-gray-150 flex items-center justify-between px-6 shrink-0">
-          {/* Welcome and Date info */}
-          <div className="flex flex-col">
-            <h1 className="text-sm font-bold text-gray-900">
-              Welcome back, {user?.name || "User"} 👋
-            </h1>
-            <span className="text-[10px] text-gray-500 font-medium">
-              {getFormattedDate()}
-            </span>
+        <header className="h-16 bg-white border-b border-gray-150 flex items-center justify-between px-3 sm:px-6 shrink-0 gap-2">
+          {/* Hamburger (mobile only) + Welcome/Date info */}
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={() => setMobileSidebarOpen(true)}
+              className="lg:hidden shrink-0 p-1.5 -ml-1 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div className="flex flex-col min-w-0">
+              <h1 className="text-sm font-bold text-gray-900 truncate">
+                Welcome back, {user?.name || "User"} 👋
+              </h1>
+              <span className="hidden sm:block text-[10px] text-gray-500 font-medium">
+                {getFormattedDate()}
+              </span>
+            </div>
           </div>
 
           {/* Action icons, Company Switcher, Profile */}
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-2 sm:gap-5 shrink-0">
             {/* Role Badge */}
             {user && (
-              <span className="badge-primary">
+              <span className="badge-primary hidden sm:inline-flex">
                 {isSuperAdmin && " Super Admin"}
                 {isCompanyAdmin && "Company Admin"}
                 {isStaff && "Staff"}

@@ -90,7 +90,7 @@ export default function SuppliersPage() {
   };
 
   const columns = [
-    { key: "name", header: "Name", accessor: (r: SupplierRecord) => r.name },
+    { key: "name", header: "Name", accessor: (r: SupplierRecord) => r.name, primary: true },
     { key: "gst", header: "GST", accessor: (r: SupplierRecord) => r.gstNo || "-" },
     { key: "phone", header: "Phone", accessor: (r: SupplierRecord) => r.phone || "-" },
     { key: "city", header: "City", accessor: (r: SupplierRecord) => r.city || "-" },
@@ -111,7 +111,7 @@ export default function SuppliersPage() {
       key: "actions",
       header: "Actions",
       accessor: (r: SupplierRecord) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
           <EditButton onClick={() => router.push(`/suppliers/edit/${r._id}`)} />
           <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
         </div>
@@ -153,6 +153,7 @@ export default function SuppliersPage() {
           data={records}
           isLoading={loading}
           emptyMessage="No suppliers found"
+          onRowClick={(r) => router.push(`/suppliers/purchases/${r._id}`)}
           pagination={{
             currentPage: page,
             totalPages,

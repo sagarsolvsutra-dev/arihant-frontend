@@ -1,6 +1,6 @@
 // API Configuration - Backend connection
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 export const API_ENDPOINTS = {
   // Auth
@@ -17,7 +17,8 @@ export const API_ENDPOINTS = {
   USERS: `${API_BASE_URL}/users`,
 
   // Masters
-  WAREHOUSES: `${API_BASE_URL}/warehouses`,
+  GODOWNS: `${API_BASE_URL}/godowns`,
+  GODOWN_GROUPS: `${API_BASE_URL}/godown-groups`,
   ITEMS: `${API_BASE_URL}/items`,
   HSN: `${API_BASE_URL}/hsn`,
   CUSTOMERS: `${API_BASE_URL}/customers`,
@@ -34,11 +35,11 @@ export const API_ENDPOINTS = {
 
   // Sales
   SALES: `${API_BASE_URL}/sales`,
-  SALES_RETURN: `${API_BASE_URL}/sales-return`,
+  SALE_RETURNS: `${API_BASE_URL}/sale-returns`,
 
   // Purchase
   PURCHASES: `${API_BASE_URL}/purchases`,
-  PURCHASE_RETURN: `${API_BASE_URL}/purchase-return`,
+  PURCHASE_RETURNS: `${API_BASE_URL}/purchase-returns`,
 
   // Inventory
   STOCK: `${API_BASE_URL}/stock`,

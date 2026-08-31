@@ -11,6 +11,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { customerGroupService } from "@/services/customerGroupService";
+import { toast } from "sonner";
 
 interface CustomerGroupRecord {
   id: string;
@@ -72,9 +73,10 @@ export default function CustomerGroupsPage() {
         setGroups(list.map((item: any) => ({ ...item, id: item._id })));
         setTotalPages(1);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setGroups([]);
+      toast.error(e.message || "An error occurred");
+setGroups([]);
     } finally {
       setIsLoading(false);
     }
@@ -138,7 +140,7 @@ export default function CustomerGroupsPage() {
       setDeletingRecord(null);
       loadCustomerGroups();
     } catch (e: any) {
-      alert(e.message || "Failed to delete customer group");
+      toast.error(e.message || "Failed to delete customer group");
     }
   };
 

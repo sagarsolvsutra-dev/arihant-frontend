@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 export default function DashboardLayout({
   children,
@@ -18,7 +18,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     setIsMounted(true);
-    
+
     // Read from localStorage on mount to avoid hydration mismatch
     const userData = localStorage.getItem("user");
     if (userData) {
@@ -28,7 +28,7 @@ export default function DashboardLayout({
         setUser(null);
       }
     }
-    
+
     checkAuth();
   }, []);
 

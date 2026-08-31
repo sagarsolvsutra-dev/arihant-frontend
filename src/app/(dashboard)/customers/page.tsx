@@ -5,17 +5,20 @@ import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { Select } from "@/components/ui/Select";
 import { Table } from "@/components/ui/Table";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { customerService } from "@/services/customerService";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface CustomerRecord {
   id?: string;
   _id: string;
   name: string;
   customerGroupId?: { _id: string; name: string } | null;
+  customerType?: string;
   gstNo?: string;
   phone?: string;
   email?: string;
@@ -36,10 +39,12 @@ export default function CustomersPage() {
   const [records, setRecords] = useState<CustomerRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [customerTypeFilter, setCustomerTypeFilter] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState<CustomerRecord | null>(null);
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!companyId) return;
@@ -47,13 +52,13 @@ export default function CustomersPage() {
       loadRecords();
     }, 300);
     return () => clearTimeout(timer);
-  }, [companyId, page, searchQuery]);
+  }, [companyId, page, searchQuery, customerTypeFilter]);
 
   const loadRecords = async () => {
     if (!companyId) return;
     setLoading(true);
     try {
-      const data = await customerService.getCustomers(companyId, page, 10, searchQuery);
+      const data = await customerService.getCustomers(companyId, page, 10, searchQuery, customerTypeFilter);
       if (data.pagination) {
         setRecords((data.data || []).map((i: any) => ({ ...i, id: i._id })));
         setTotalPages(data.pagination.totalPages || 1);
@@ -62,10 +67,31 @@ export default function CustomersPage() {
         setRecords(list.map((i: any) => ({ ...i, id: i._id })));
         setTotalPages(1);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-    } finally {
+      toast.error(err.message || "An error occurred");
+} finally {
       setLoading(false);
+    }
+  };
+
+  const toggleActive = async (r: CustomerRecord) => {
+    if (togglingIds.has(r._id)) return;
+    setTogglingIds((prev) => new Set(prev).add(r._id));
+    const nextActive = !r.isActive;
+    try {
+      await customerService.updateCustomer(r._id, { isActive: nextActive });
+      setRecords((prev) => prev.map((it) => (it._id === r._id ? { ...it, isActive: nextActive } : it)));
+      toast.success(`Customer marked ${nextActive ? "Active" : "Inactive"}`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to update status");
+    } finally {
+      setTogglingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(r._id);
+        return next;
+      });
     }
   };
 
@@ -74,9 +100,11 @@ export default function CustomersPage() {
     try {
       await customerService.deleteCustomer(deletingRecord._id);
       loadRecords();
-    } catch (err) {
+      toast.success("Deleted successfully");
+    } catch (err: any) {
       console.error(err);
-    } finally {
+      toast.error(err.message || "An error occurred");
+} finally {
       setIsDeleteOpen(false);
       setDeletingRecord(null);
     }
@@ -87,8 +115,13 @@ export default function CustomersPage() {
     setPage(1);
   };
 
+  const handleTypeFilterChange = (val: string) => {
+    setCustomerTypeFilter(val);
+    setPage(1);
+  };
+
   const columns = [
-    { key: "name", header: "Name", accessor: (r: CustomerRecord) => r.name },
+    { key: "name", header: "Name", accessor: (r: CustomerRecord) => r.name, primary: true },
     { key: "group", header: "Group", accessor: (r: CustomerRecord) => r.customerGroupId?.name || "-" },
     { key: "gst", header: "GST", accessor: (r: CustomerRecord) => r.gstNo || "-" },
     { key: "phone", header: "Phone", accessor: (r: CustomerRecord) => r.phone || "-" },
@@ -97,20 +130,26 @@ export default function CustomersPage() {
       key: "status",
       header: "Status",
       accessor: (r: CustomerRecord) => (
-        <span
-          className={`px-2 py-1 rounded-full text-xs font-medium ${
-            r.isActive ? "bg-gray-100 text-gray-900" : "bg-gray-50 text-gray-500"
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); toggleActive(r); }}
+          disabled={togglingIds.has(r._id)}
+          title="Click to toggle status"
+          className={`px-2 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+            r.isActive
+              ? "bg-green-100 text-green-800 hover:bg-green-200"
+              : "bg-gray-100 text-gray-500 hover:bg-gray-200"
           }`}
         >
           {r.isActive ? "Active" : "Inactive"}
-        </span>
+        </button>
       ),
     },
     {
       key: "actions",
       header: "Actions",
       accessor: (r: CustomerRecord) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
           <EditButton onClick={() => router.push(`/customers/edit/${r._id}`)} />
           <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
         </div>
@@ -138,12 +177,28 @@ export default function CustomersPage() {
         </Button>
       </div>
 
-      <div className="card p-4">
-        <SearchInput
-          value={searchQuery}
-          onChange={handleSearchChange}
-          placeholder="Search customers..."
-        />
+      <div className="card p-4 flex flex-col md:flex-row gap-3">
+        <div className="flex-1">
+          <SearchInput
+            value={searchQuery}
+            onChange={handleSearchChange}
+            placeholder="Search customers..."
+          />
+        </div>
+        <div className="w-full md:w-56">
+          <Select
+            options={[
+              { value: "", label: "All Customer Types" },
+              { value: "Retailer", label: "Retailer" },
+              { value: "Wholesaler", label: "Wholesaler" },
+              { value: "Distributor", label: "Distributor" },
+            ]}
+            value={customerTypeFilter}
+            onChange={handleTypeFilterChange}
+            placeholder="All Customer Types"
+            searchable={false}
+          />
+        </div>
       </div>
 
       <div className="card">
@@ -152,6 +207,7 @@ export default function CustomersPage() {
           data={records}
           isLoading={loading}
           emptyMessage="No customers found"
+          onRowClick={(r: CustomerRecord) => router.push(`/customers/sales/${r._id}`)}
           pagination={{
             currentPage: page,
             totalPages,

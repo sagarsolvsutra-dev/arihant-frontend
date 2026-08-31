@@ -25,24 +25,27 @@ async function request<T = any>(
   return data;
 }
 
-export const itemGroupService = {
-  getItemGroups: (companyId: string, page = 1, limit = 10, search = "") => {
-    return request(`${API_ENDPOINTS.ITEM_GROUPS}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
+export const saleService = {
+  getSales: (companyId: string, page = 1, limit = 10, search = "") => {
+    return request(`${API_ENDPOINTS.SALES}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
   },
-  createItemGroup: (payload: { companyId: string; name: string; shortName?: string; commissionRate?: number; isActive?: boolean }) => {
-    return request(API_ENDPOINTS.ITEM_GROUPS, {
+  getSaleById: (id: string) => {
+    return request(`${API_ENDPOINTS.SALES}/${id}`);
+  },
+  createSale: (payload: any) => {
+    return request(API_ENDPOINTS.SALES, {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
-  updateItemGroup: (id: string, payload: { name?: string; shortName?: string; commissionRate?: number; isActive?: boolean }) => {
-    return request(`${API_ENDPOINTS.ITEM_GROUPS}/${id}`, {
+  updateSale: (id: string, payload: any) => {
+    return request(`${API_ENDPOINTS.SALES}/${id}`, {
       method: "PUT",
       body: JSON.stringify(payload),
     });
   },
-  deleteItemGroup: (id: string) => {
-    return request(`${API_ENDPOINTS.ITEM_GROUPS}/${id}`, {
+  deleteSale: (id: string) => {
+    return request(`${API_ENDPOINTS.SALES}/${id}`, {
       method: "DELETE",
     });
   },

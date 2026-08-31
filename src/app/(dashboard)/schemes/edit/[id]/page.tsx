@@ -5,11 +5,11 @@ import { useRouter, useParams } from "next/navigation";
 import { useCompany } from "@/context/CompanyContext";
 import { schemeService } from "@/services/schemeService";
 import { customerService } from "@/services/customerService";
-import { itemGroupService } from "@/services/itemGroupService";
 import { Save, X, Plus, Edit, List } from "lucide-react";
 import { FormToolbar } from "@/components/ui/FormToolbar";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { toast } from "sonner";
 
 const FieldRow = ({ label, children, required }: any) => (
   <div className="flex items-center text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50/50 min-h-[44px]">
@@ -35,10 +35,8 @@ export default function EditSchemePage() {
 
   // Data sources for dropdowns
   const [customers, setCustomers] = useState<{ _id: string; name: string }[]>([]);
-  const [itemGroups, setItemGroups] = useState<{ _id: string; name: string }[]>([]);
 
   // Form State
-  const [itemGroupId, setItemGroupId] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [lessPercentage, setLessPercentage] = useState("0.00");
   const [cdPercentage, setCdPercentage] = useState("0.00");
@@ -53,26 +51,23 @@ export default function EditSchemePage() {
     setLoading(true);
     try {
       // We don't have a getSchemeById currently, so we'll fetch from the list and find it
-      const [custRes, groupRes, schemesRes] = await Promise.all([
+      const [custRes, schemesRes] = await Promise.all([
         customerService.getCustomers(companyId!, 1, 1000),
-        itemGroupService.getItemGroups(companyId!, 1, 1000),
         schemeService.getSchemes(companyId!, 1, 1000)
       ]);
       setCustomers(Array.isArray(custRes) ? custRes : custRes.data || []);
-      setItemGroups(Array.isArray(groupRes) ? groupRes : groupRes.data || []);
 
       const allSchemes = Array.isArray(schemesRes) ? schemesRes : schemesRes.data || [];
       const scheme = allSchemes.find((s: any) => s._id === id);
-      
+
       if (scheme) {
-        setItemGroupId(scheme.itemGroupId?._id || scheme.itemGroupId || "");
         setCustomerId(scheme.customerId?._id || scheme.customerId || "");
         setLessPercentage(scheme.lessPercentage?.toFixed(2) || "0.00");
         setCdPercentage(scheme.cdPercentage?.toFixed(2) || "0.00");
       } else {
         setErrors({ form: "Scheme not found" });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load data", err);
       setErrors({ form: "Failed to load data" });
     } finally {
@@ -87,13 +82,13 @@ export default function EditSchemePage() {
     setSaving(true);
     try {
       const payload: any = {
-        itemGroupId: itemGroupId || null,
         customerId: customerId || null,
         lessPercentage: parseFloat(lessPercentage) || 0,
         cdPercentage: parseFloat(cdPercentage) || 0,
       };
 
       await schemeService.updateScheme(id as string, payload);
+      toast.success("Saved successfully");
       router.push("/schemes");
     } catch (err: any) {
       console.error(err);
@@ -125,17 +120,6 @@ export default function EditSchemePage() {
             <div className="p-8 text-center text-gray-500">Loading scheme data...</div>
           ) : (
             <div className="flex flex-col w-full">
-              <FieldRow label="Item Group">
-                <div className="w-full max-w-sm">
-                  <Select
-                    value={itemGroupId}
-                    onChange={(val) => setItemGroupId(val)}
-                    options={[{ value: "", label: "Select Item Group.." }, ...itemGroups.map(g => ({ value: g._id, label: g.name }))]}
-                    className="w-full"
-                  />
-                </div>
-              </FieldRow>
-
               <FieldRow label="Customer Name">
                 <div className="w-full max-w-sm">
                   <Select

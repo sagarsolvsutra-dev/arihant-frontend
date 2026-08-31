@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Search, Trash2, Edit, AlertCircle } from "lucide-react";
+import { Plus, Search, AlertCircle } from "lucide-react";
+import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -10,7 +11,7 @@ import { Table } from "@/components/ui/Table";
 import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
-import { itemGroupService } from "@/services/itemGroupService";
+import { supplierService } from "@/services/supplierService";
 import { itemNameService } from "@/services/itemNameService";
 import { itemSubGroupService } from "@/services/itemSubGroupService";
 
@@ -18,7 +19,7 @@ interface ItemSubGroup {
   _id: string;
   id?: string;
   name: string;
-  itemGroupId?: string;
+  supplierId?: string;
   itemNameId?: any;
   isActive: boolean;
 }
@@ -42,27 +43,27 @@ export default function ItemSubGroupsPage() {
 
   // Form state
   const [name, setName] = useState("");
-  const [itemGroupId, setItemGroupId] = useState("");
+  const [supplierId, setSupplierId] = useState("");
   const [itemNameId, setItemNameId] = useState("");
   const [isActive, setIsActive] = useState(true);
 
-  const [itemGroups, setItemGroups] = useState<{ _id: string; name: string; isActive?: boolean }[]>([]);
+  const [suppliers, setSuppliers] = useState<{ _id: string; name: string; isActive?: boolean }[]>([]);
   const [itemNames, setItemNames] = useState<{ _id: string; name: string; isActive?: boolean }[]>([]);
 
-  // Load item groups once when company changes
+  // Load suppliers once when company changes
   useEffect(() => {
     if (companyId) {
-      loadItemGroups();
+      loadSuppliers();
     }
   }, [companyId]);
 
   useEffect(() => {
-    if (companyId && itemGroupId) {
-      loadItemNames(itemGroupId);
+    if (companyId && supplierId) {
+      loadItemNames(supplierId);
     } else {
       setItemNames([]);
     }
-  }, [companyId, itemGroupId]);
+  }, [companyId, supplierId]);
 
   // Load records with debounce for search and pagination
   useEffect(() => {
@@ -93,21 +94,21 @@ export default function ItemSubGroupsPage() {
     }
   };
 
-  const loadItemGroups = async () => {
+  const loadSuppliers = async () => {
     if (!companyId) return;
     try {
-      const data = await itemGroupService.getItemGroups(companyId);
+      const data = await supplierService.getSuppliers(companyId, 1, 1000);
       const list = Array.isArray(data) ? data : data.data || [];
-      setItemGroups(list);
+      setSuppliers(list);
     } catch (err) {
       console.error(err);
     }
   };
 
-  const loadItemNames = async (groupId: string) => {
+  const loadItemNames = async (supplierId: string) => {
     if (!companyId) return;
     try {
-      const data = await itemNameService.getItemNames(companyId, "", groupId);
+      const data = await itemNameService.getItemNames(companyId, "", supplierId);
       const list = Array.isArray(data) ? data : data.data || [];
       setItemNames(list);
     } catch (err) {
@@ -117,7 +118,7 @@ export default function ItemSubGroupsPage() {
 
   const resetForm = () => {
     setName("");
-    setItemGroupId("");
+    setSupplierId("");
     setItemNameId("");
     setIsActive(true);
     setEditingRecord(null);
@@ -131,12 +132,12 @@ export default function ItemSubGroupsPage() {
 
   const openEdit = (record: ItemSubGroup) => {
     resetForm();
-    if (record.itemGroupId) {
-      loadItemNames(record.itemGroupId);
+    if (record.supplierId) {
+      loadItemNames(record.supplierId);
     }
     setEditingRecord(record);
     setName(record.name || "");
-    setItemGroupId(record.itemGroupId || "");
+    setSupplierId(record.supplierId || "");
     setItemNameId(record.itemNameId?._id || record.itemNameId || "");
     setIsActive(record.isActive ?? true);
     setFormOpen(true);
@@ -144,10 +145,10 @@ export default function ItemSubGroupsPage() {
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
-    if (!itemGroupId) newErrors.itemGroupId = "Item Group is required";
+    if (!supplierId) newErrors.supplierId = "Supplier is required";
     if (!itemNameId) newErrors.itemNameId = "Item Name is required";
     if (!name.trim()) newErrors.name = "Sub Group Name is required";
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -163,7 +164,7 @@ export default function ItemSubGroupsPage() {
       const payload = {
         companyId,
         name: name.trim(),
-        itemGroupId: itemGroupId || undefined,
+        supplierId: supplierId || undefined,
         itemNameId: itemNameId || undefined,
         isActive,
       };
@@ -202,12 +203,12 @@ export default function ItemSubGroupsPage() {
 
   const columns = [
     { key: "name", header: "Name", accessor: (r: ItemSubGroup) => r.name },
-    { 
-      key: "group", 
-      header: "Group", 
+    {
+      key: "supplier",
+      header: "Supplier",
       accessor: (r: ItemSubGroup) => {
-        const g = itemGroups.find((ig) => ig._id === r.itemGroupId);
-        return g ? g.name : "-";
+        const s = suppliers.find((sup) => sup._id === r.supplierId);
+        return s ? s.name : "-";
       }
     },
     { 
@@ -235,21 +236,8 @@ export default function ItemSubGroupsPage() {
       header: "Actions",
       accessor: (r: ItemSubGroup) => (
         <div className="flex gap-2">
-          <button
-            onClick={() => openEdit(r)}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <Edit className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => {
-              setDeletingRecord(r);
-              setIsDeleteOpen(true);
-            }}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-red-600 hover:text-red-800 transition-colors"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          <EditButton onClick={() => openEdit(r)} />
+          <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
         </div>
       ),
     },
@@ -317,18 +305,18 @@ export default function ItemSubGroupsPage() {
       >
         <form onSubmit={handleSave} className="space-y-4">
           <Select
-            label="Item Group"
-            options={itemGroups
-              .filter(ig => ig.isActive !== false || ig._id === itemGroupId)
-              .map(ig => ({ value: ig._id, label: ig.name }))}
-            value={itemGroupId}
+            label="Supplier"
+            options={suppliers
+              .filter(s => s.isActive !== false || s._id === supplierId)
+              .map(s => ({ value: s._id, label: s.name }))}
+            value={supplierId}
             onChange={(val) => {
-              setItemGroupId(val);
-              setItemNameId(""); // reset item name on group change
+              setSupplierId(val);
+              setItemNameId(""); // reset item name on supplier change
               if (val) loadItemNames(val);
             }}
-            error={errors.itemGroupId}
-            placeholder="Select Item Group"
+            error={errors.supplierId}
+            placeholder="Select Supplier"
             isRequired
           />
           <Select
@@ -341,7 +329,7 @@ export default function ItemSubGroupsPage() {
             error={errors.itemNameId}
             placeholder="Select Item Name"
             isRequired
-            disabled={!itemGroupId}
+            disabled={!supplierId}
           />
           <Input
             label="Name"

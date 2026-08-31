@@ -29,13 +29,13 @@ export const itemSubGroupService = {
   getItemSubGroups: (companyId: string, page = 1, limit = 10, search = "") => {
     return request(`${API_ENDPOINTS.ITEM_SUB_GROUPS}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
   },
-  createItemSubGroup: (payload: { companyId: string; name: string; shortName?: string; itemGroupId?: string; isActive?: boolean }) => {
+  createItemSubGroup: (payload: { companyId: string; name: string; shortName?: string; supplierId?: string; itemNameId?: string; isActive?: boolean }) => {
     return request(API_ENDPOINTS.ITEM_SUB_GROUPS, {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
-  updateItemSubGroup: (id: string, payload: { name?: string; shortName?: string; itemGroupId?: string; isActive?: boolean }) => {
+  updateItemSubGroup: (id: string, payload: { name?: string; shortName?: string; supplierId?: string; itemNameId?: string; isActive?: boolean }) => {
     return request(`${API_ENDPOINTS.ITEM_SUB_GROUPS}/${id}`, {
       method: "PUT",
       body: JSON.stringify(payload),

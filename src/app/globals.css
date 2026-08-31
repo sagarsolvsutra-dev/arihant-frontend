@@ -344,4 +344,29 @@ input[type="radio"] {
 
 .login-bg {
   background: linear-gradient(135deg, var(--bw-black) 0%, var(--bw-gray-800) 100%);
+}/* Responsive Form Tables */
+@media (max-width: 1024px) {
+  .responsive-form-table {
+    display: block;
+    width: 100%;
+  }
+  .responsive-form-table tbody,
+  .responsive-form-table tr,
+  .responsive-form-table td {
+    display: block;
+    width: 100%;
+  }
+  .responsive-form-table tr {
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--bw-gray-200);
+    padding-bottom: 0.5rem;
+  }
+  .responsive-form-table td {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+  .responsive-form-table td:first-child {
+    font-weight: 600;
+    padding-bottom: 0.25rem;
+  }
 }

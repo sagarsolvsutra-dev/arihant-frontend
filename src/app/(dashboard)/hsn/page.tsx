@@ -12,6 +12,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { hsnService } from "@/services/hsnService";
+import { toast } from "sonner";
 
 interface HsnCodeRecord {
   id: string;
@@ -129,9 +130,10 @@ export default function HsnPage() {
         setHsnCodes(list.map((item: any) => ({ ...item, id: item._id })));
         setTotalPages(1);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setHsnCodes([]);
+      toast.error(e.message || "An error occurred");
+setHsnCodes([]);
     } finally {
       setIsLoading(false);
     }
@@ -213,7 +215,7 @@ export default function HsnPage() {
       setDeletingRecord(null);
       loadHsnCodes();
     } catch (e: any) {
-      alert(e.message || "Failed to delete HSN code");
+      toast.error(e.message || "Failed to delete HSN code");
     }
   };
 

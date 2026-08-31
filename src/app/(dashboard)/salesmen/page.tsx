@@ -11,6 +11,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { salesmanService } from "@/services/salesmanService";
+import { toast } from "sonner";
 
 interface SalesmanRecord {
   id?: string;
@@ -94,6 +95,14 @@ export default function SalesmenPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!companyId || !name.trim()) return;
+    if (phone.trim() && phone.trim().length !== 10) {
+      toast.error("Phone number must be exactly 10 digits");
+      return;
+    }
+    if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) {
+      toast.error("Invalid email format");
+      return;
+    }
     setSaving(true);
     try {
       const payload: any = {
@@ -112,8 +121,10 @@ export default function SalesmenPage() {
       setFormOpen(false);
       resetForm();
       loadRecords();
-    } catch (err) {
+      toast.success("Saved successfully");
+    } catch (err: any) {
       console.error(err);
+      toast.error(err.message || "Failed to save");
     } finally {
       setSaving(false);
     }
@@ -124,8 +135,9 @@ export default function SalesmenPage() {
     try {
       await salesmanService.deleteSalesman(deletingRecord._id);
       loadRecords();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      toast.error(err.message || "Failed to delete");
     } finally {
       setIsDeleteOpen(false);
       setDeletingRecord(null);
@@ -146,9 +158,8 @@ export default function SalesmenPage() {
       header: "Status",
       accessor: (r: SalesmanRecord) => (
         <span
-          className={`px-2 py-1 rounded-full text-xs font-medium ${
-            r.isActive ? "bg-gray-100 text-gray-900" : "bg-gray-50 text-gray-500"
-          }`}
+          className={`px-2 py-1 rounded-full text-xs font-medium ${r.isActive ? "bg-gray-100 text-gray-900" : "bg-gray-50 text-gray-500"
+            }`}
         >
           {r.isActive ? "Active" : "Inactive"}
         </span>

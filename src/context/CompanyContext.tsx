@@ -29,7 +29,7 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     async function loadCompanies() {
       setIsContextLoading(true);
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
         const res = await fetch(`${apiUrl}/companies`, {
           headers: {
             "Content-Type": "application/json",
@@ -44,7 +44,7 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const list = Array.isArray(data) ? data : data.companies || [];
           if (list.length > 0) {
             setCompanies(list);
-            
+
             let defaultId = list[0]._id;
             if (typeof window !== "undefined") {
               try {
@@ -59,7 +59,7 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 console.error("Error parsing user from localStorage", e);
               }
             }
-            
+
             setSelectedCompanyId(defaultId);
             return;
           }

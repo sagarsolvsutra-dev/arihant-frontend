@@ -29,6 +29,9 @@ export const itemService = {
   getItems: (companyId: string, page = 1, limit = 10, search = "") => {
     return request(`${API_ENDPOINTS.ITEMS}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
   },
+  getItemById: (id: string) => {
+    return request(`${API_ENDPOINTS.ITEMS}/${id}`);
+  },
   createItem: (payload: any) => {
     return request(API_ENDPOINTS.ITEMS, {
       method: "POST",

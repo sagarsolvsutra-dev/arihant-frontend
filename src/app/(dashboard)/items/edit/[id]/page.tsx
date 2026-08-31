@@ -2,15 +2,79 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { FormToolbar } from "@/components/ui/FormToolbar";
+import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { itemService } from "@/services/itemService";
-import { itemGroupService } from "@/services/itemGroupService";
+import { supplierService } from "@/services/supplierService";
 import { itemSubGroupService } from "@/services/itemSubGroupService";
 import { hsnService } from "@/services/hsnService";
 import { itemNameService } from "@/services/itemNameService";
+
+// Builds an MRP entry from a saved Item record's flat pricing fields, for items
+// saved before the Multi-MRP grid existed (so their single row still displays correctly).
+function buildFallbackMrpEntry(r: any) {
+  const pRate = parseFloat(r.purchaseRate) || 0;
+  const disc = parseFloat(r.discountPercentage) || 0;
+  const gst = parseFloat(r.gstPercentage) || 0;
+  const pQty = parseFloat(r.purchaseQty) || 1;
+  const sQty = parseFloat(r.salesQty) || 1;
+  const discounted = pRate - pRate * (disc / 100);
+  const ncSelfTotal = discounted + discounted * (gst / 100);
+  const ncSelfPerPiece = pQty > 0 ? (ncSelfTotal / pQty) * sQty : ncSelfTotal;
+  return {
+    mrp: parseFloat(r.mrp) || 0,
+    mrpActive: r.mrpActive ?? true,
+    purchaseRate: pRate,
+    discountPercentage: disc,
+    netCostSelf: ncSelfTotal,
+    netCostSelfPerPiece: ncSelfPerPiece,
+    marginToCostRetailer: parseFloat(r.marginToCostRetailer) || 0,
+    marginToCostWholesaler: parseFloat(r.marginToCostWholesaler) || 0,
+    marginToCostDistributor: parseFloat(r.marginToCostDistributor) || 0,
+    marginToMrpRetailer: parseFloat(r.marginToMrpRetailer) || 0,
+    marginToMrpWholesaler: parseFloat(r.marginToMrpWholesaler) || 0,
+    marginToMrpDistributor: parseFloat(r.marginToMrpDistributor) || 0,
+    retailRate: parseFloat(r.retailRate) || 0,
+    wholeSaleRate: parseFloat(r.wholeSaleRate) || 0,
+    distributorRate: parseFloat(r.distributorRate) || 0,
+    netCostRetailer: parseFloat(r.netCostRetailer) || 0,
+    netCostWholesaler: parseFloat(r.netCostWholesaler) || 0,
+    netCostDistributor: parseFloat(r.netCostDistributor) || 0,
+    netCostRetailerPerPiece: parseFloat(r.netCostRetailerPerPiece) || 0,
+    netCostWholesalerPerPiece: parseFloat(r.netCostWholesalerPerPiece) || 0,
+    netCostDistributorPerPiece: parseFloat(r.netCostDistributorPerPiece) || 0,
+    packing: parseFloat(r.packing) || 1,
+    purchaseQty: pQty,
+    salesQty: sQty,
+    minStockQty: parseFloat(r.minStockQty) || 0,
+    weightPerPiece: parseFloat(r.weightPerPiece) || 0,
+    schemeRemark: r.schemeRemark || "",
+    openingStockFreshCase: parseFloat(r.openingStockFreshCase) || 0,
+    openingStockFreshPcs: parseFloat(r.openingStockFreshPcs) || 0,
+    openingStockDamagedCase: parseFloat(r.openingStockDamagedCase) || 0,
+    openingStockDamagedPcs: parseFloat(r.openingStockDamagedPcs) || 0,
+  };
+}
+
+// All fields an MRP entry carries — used to detect whether the form fields have
+// actually diverged from the currently selected grid row (not just MRP/rate/discount).
+const MRP_ENTRY_FIELDS = [
+  "mrp", "mrpActive", "purchaseRate", "discountPercentage",
+  "marginToCostRetailer", "marginToCostWholesaler", "marginToCostDistributor",
+  "marginToMrpRetailer", "marginToMrpWholesaler", "marginToMrpDistributor",
+  "retailRate", "wholeSaleRate", "distributorRate",
+  "packing", "purchaseQty", "salesQty", "minStockQty", "weightPerPiece", "schemeRemark",
+  "openingStockFreshCase", "openingStockFreshPcs", "openingStockDamagedCase", "openingStockDamagedPcs",
+];
+
+function mrpEntriesEqual(a: any, b: any) {
+  if (!a || !b) return false;
+  return MRP_ENTRY_FIELDS.every((key) => a[key] === b[key]);
+}
 
 export default function EditItemPage() {
   const router = useRouter();
@@ -24,14 +88,14 @@ export default function EditItemPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Master Data
-  const [groups, setGroups] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [subGroups, setSubGroups] = useState<any[]>([]);
   const [itemNamesList, setItemNamesList] = useState<any[]>([]);
   const [hsnCodesList, setHsnCodesList] = useState<any[]>([]);
 
   // General fields
   const [name, setName] = useState("");
-  const [itemGroupId, setItemGroupId] = useState("");
+  const [supplierId, setSupplierId] = useState("");
   const [itemSubGroupId, setItemSubGroupId] = useState("");
   const [gstPercentage, setGstPercentage] = useState("18");
   const [hsnCode, setHsnCode] = useState("");
@@ -42,11 +106,10 @@ export default function EditItemPage() {
   const [weightPerPiece, setWeightPerPiece] = useState("0");
   const [schemeRemark, setSchemeRemark] = useState("");
   const [itemActive, setItemActive] = useState(true);
+  const [minStockQty, setMinStockQty] = useState("0");
 
   // Pricing fields
-  const [purchaseType, setPurchaseType] = useState("Carton");
   const [purchaseQty, setPurchaseQty] = useState("1");
-  const [salesType, setSalesType] = useState("Pieces");
   const [salesQty, setSalesQty] = useState("1");
   const [mrp, setMrp] = useState("0");
   const [mrpActive, setMrpActive] = useState(true);
@@ -84,6 +147,11 @@ export default function EditItemPage() {
   const [netCostCustomerWholesalerPerPiece, setNetCostCustomerWholesalerPerPiece] = useState("0");
   const [netCostCustomerDistributorPerPiece, setNetCostCustomerDistributorPerPiece] = useState("0");
 
+  // Multi-MRP grid
+  const [mrpEntries, setMrpEntries] = useState<any[]>([]);
+  const [selectedEntryIndex, setSelectedEntryIndex] = useState<number | null>(null);
+  const [confirmDeleteMrp, setConfirmDeleteMrp] = useState(false);
+
   useEffect(() => {
     if (companyId && itemId) {
       loadData();
@@ -93,27 +161,24 @@ export default function EditItemPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [grpRes, subGrpRes, hsnRes, itemsRes] = await Promise.all([
-        itemGroupService.getItemGroups(companyId!),
-        itemSubGroupService.getItemSubGroups(companyId!),
-        hsnService.getHsnCodes(companyId!),
-        itemService.getItems(companyId!),
+      const [supRes, subGrpRes, hsnRes, record] = await Promise.all([
+        supplierService.getSuppliers(companyId!, 1, 1000),
+        itemSubGroupService.getItemSubGroups(companyId!, 1, 1000),
+        hsnService.getHsnCodes(companyId!, 1, 1000),
+        itemService.getItemById(itemId),
       ]);
-      
-      setGroups(Array.isArray(grpRes) ? grpRes : grpRes.data || []);
+
+      setSuppliers(Array.isArray(supRes) ? supRes : supRes.data || []);
       setSubGroups(Array.isArray(subGrpRes) ? subGrpRes : subGrpRes.data || []);
       setHsnCodesList(Array.isArray(hsnRes) ? hsnRes : hsnRes.data || []);
 
-      const list = Array.isArray(itemsRes) ? itemsRes : itemsRes.data || [];
-      const record = list.find((i: any) => i._id === itemId);
-      
       if (record) {
         setName(record.itemName || "");
-        
-        const grpId = record.itemGroupId?._id || record.itemGroupId || "";
-        setItemGroupId(grpId);
-        if (grpId) {
-          loadItemNames(grpId);
+
+        const supId = record.supplierId?._id || record.supplierId || "";
+        setSupplierId(supId);
+        if (supId) {
+          loadItemNames(supId);
         }
         setItemSubGroupId(record.itemSubGroupId?._id || record.itemSubGroupId || "");
         setGstPercentage(record.gstPercentage?.toString() || "0");
@@ -125,13 +190,12 @@ export default function EditItemPage() {
         setWeightPerPiece(record.weightPerPiece?.toString() || "0");
         setSchemeRemark(record.schemeRemark || "");
         setItemActive(record.isActive ?? true);
-        
+        setMinStockQty(record.minStockQty?.toString() || "0");
+
         setMrp(record.mrp?.toString() || "0");
         setMrpActive(record.mrpActive ?? true);
         setPurchaseRate(record.purchaseRate?.toString() || "0");
-        setPurchaseType(record.purchaseType || "Carton");
         setPurchaseQty(record.purchaseQty?.toString() || "1");
-        setSalesType(record.salesType || "Pieces");
         setSalesQty(record.salesQty?.toString() || "1");
         setDiscountPercentage(record.discountPercentage?.toString() || "0");
         setMarginToCostRetailer(record.marginToCostRetailer?.toString() || "0");
@@ -150,26 +214,174 @@ export default function EditItemPage() {
         setOpeningStockDamagedCase(record.openingStockDamagedCase?.toString() || "0");
         setOpeningStockDamagedPcs(record.openingStockDamagedPcs?.toString() || "0");
         setLastCostRate(record.lastCostRate?.toString() || "0");
+
+        const entries = Array.isArray(record.mrpEntries) && record.mrpEntries.length > 0
+          ? record.mrpEntries
+          : [buildFallbackMrpEntry(record)];
+        setMrpEntries(entries);
+        setSelectedEntryIndex(0);
       } else {
-        alert("Item not found");
+        toast.error("Item not found");
         router.push("/items");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to load item data");
+      toast.error(err.message || "Failed to load item data");
       router.push("/items");
     } finally {
       setLoading(false);
     }
   };
 
-  const loadItemNames = async (groupId: string) => {
+  const loadItemNames = async (supplierId: string) => {
     try {
-      const data = await itemNameService.getItemNames(companyId!, "", groupId);
+      const data = await itemNameService.getItemNames(companyId!, "", supplierId);
       const list = Array.isArray(data) ? data : data.data || [];
       setItemNamesList(list);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const buildEntryFromFields = () => ({
+    mrp: parseFloat(mrp) || 0,
+    mrpActive,
+    purchaseRate: parseFloat(purchaseRate) || 0,
+    discountPercentage: parseFloat(discountPercentage) || 0,
+    netCostSelf: parseFloat(netCostSelf) || 0,
+    netCostSelfPerPiece: parseFloat(netCostSelfPerPiece) || 0,
+    marginToCostRetailer: parseFloat(marginToCostRetailer) || 0,
+    marginToCostWholesaler: parseFloat(marginToCostWholesaler) || 0,
+    marginToCostDistributor: parseFloat(marginToCostDistributor) || 0,
+    marginToMrpRetailer: parseFloat(marginToMrpRetailer) || 0,
+    marginToMrpWholesaler: parseFloat(marginToMrpWholesaler) || 0,
+    marginToMrpDistributor: parseFloat(marginToMrpDistributor) || 0,
+    retailRate: parseFloat(salesRateRetailer) || 0,
+    wholeSaleRate: parseFloat(salesRateWholesaler) || 0,
+    distributorRate: parseFloat(salesRateDistributor) || 0,
+    netCostRetailer: parseFloat(netCostCustomerRetailer) || 0,
+    netCostWholesaler: parseFloat(netCostCustomerWholesaler) || 0,
+    netCostDistributor: parseFloat(netCostCustomerDistributor) || 0,
+    netCostRetailerPerPiece: parseFloat(netCostCustomerRetailerPerPiece) || 0,
+    netCostWholesalerPerPiece: parseFloat(netCostCustomerWholesalerPerPiece) || 0,
+    netCostDistributorPerPiece: parseFloat(netCostCustomerDistributorPerPiece) || 0,
+    packing: parseFloat(packing) || 1,
+    purchaseQty: parseFloat(purchaseQty) || 1,
+    salesQty: parseFloat(salesQty) || 1,
+    minStockQty: parseFloat(minStockQty) || 0,
+    weightPerPiece: parseFloat(weightPerPiece) || 0,
+    schemeRemark: schemeRemark.trim(),
+    openingStockFreshCase: parseFloat(openingStockFreshCase) || 0,
+    openingStockFreshPcs: parseFloat(openingStockFreshPcs) || 0,
+    openingStockDamagedCase: parseFloat(openingStockDamagedCase) || 0,
+    openingStockDamagedPcs: parseFloat(openingStockDamagedPcs) || 0,
+  });
+
+  // Only resets the pricing side (MRP/Purchase Rate/Discount/Margins) after a rate is
+  // added — Packing, Purchase/Sale Qty, Reorder Level, Weight, Scheme Remark, and
+  // Opening Stock are left as-is, since they're typically identical across an item's
+  // MRP tiers and the user shouldn't have to retype them for every new price point.
+  const resetEntryFields = () => {
+    setMrp("0");
+    setMrpActive(true);
+    setPurchaseRate("0");
+    setDiscountPercentage("0");
+    setMarginToCostRetailer("0");
+    setMarginToCostWholesaler("0");
+    setMarginToCostDistributor("0");
+    setMarginToMrpRetailer("0");
+    setMarginToMrpWholesaler("0");
+    setMarginToMrpDistributor("0");
+    setSalesRateRetailer("0");
+    setSalesRateWholesaler("0");
+    setSalesRateDistributor("0");
+  };
+
+  const handleAddMrpEntry = () => {
+    const entry = buildEntryFromFields();
+    if (entry.mrp <= 0 || entry.purchaseRate <= 0) {
+      setSelectedEntryIndex(null);
+      resetEntryFields();
+      return;
+    }
+    // Fields still match the currently selected/loaded row untouched — nothing new to add yet.
+    // Compares every field the entry carries, not just mrp/rate/discount, so an edit to e.g.
+    // opening stock on a selected row isn't silently discarded just because MRP didn't change.
+    const currentEntry = selectedEntryIndex !== null ? mrpEntries[selectedEntryIndex] : null;
+    const isUnchanged = currentEntry && mrpEntriesEqual(currentEntry, entry);
+    if (isUnchanged) {
+      setSelectedEntryIndex(null);
+      resetEntryFields();
+      return;
+    }
+    const isDuplicate = mrpEntries.some((e) => e.mrp === entry.mrp);
+    if (isDuplicate) {
+      setSelectedEntryIndex(null);
+      resetEntryFields();
+      toast.error(`An MRP entry of ${entry.mrp} already exists`);
+      return;
+    }
+    setMrpEntries((prev) => [...prev, entry]);
+    setSelectedEntryIndex(null);
+    resetEntryFields();
+    toast.success("MRP entry added — enter a new price below");
+  };
+
+  const handleEditMrpEntry = () => {
+    if (selectedEntryIndex === null) {
+      toast.error("Select a row in the grid first");
+      return;
+    }
+    const entry = buildEntryFromFields();
+    const isDuplicate = mrpEntries.some((e, i) => i !== selectedEntryIndex && e.mrp === entry.mrp);
+    if (isDuplicate) {
+      toast.error(`An MRP entry of ${entry.mrp} already exists`);
+      return;
+    }
+    setMrpEntries((prev) => prev.map((e, i) => (i === selectedEntryIndex ? entry : e)));
+    toast.success("MRP entry updated");
+  };
+
+  const confirmDeleteMrpEntry = () => {
+    if (selectedEntryIndex === null) return;
+    setMrpEntries((prev) => prev.filter((_, i) => i !== selectedEntryIndex));
+    setSelectedEntryIndex(null);
+    setConfirmDeleteMrp(false);
+    toast.success("MRP entry deleted");
+  };
+
+  const handleSelectMrpEntry = (index: number) => {
+    const entry = mrpEntries[index];
+    if (!entry) return;
+    setSelectedEntryIndex(index);
+    setMrp(String(entry.mrp ?? 0));
+    setMrpActive(entry.mrpActive ?? true);
+    setPurchaseRate(String(entry.purchaseRate ?? 0));
+    setDiscountPercentage(String(entry.discountPercentage ?? 0));
+    setMarginToCostRetailer(String(entry.marginToCostRetailer ?? 0));
+    setMarginToCostWholesaler(String(entry.marginToCostWholesaler ?? 0));
+    setMarginToCostDistributor(String(entry.marginToCostDistributor ?? 0));
+    setMarginToMrpRetailer(String(entry.marginToMrpRetailer ?? 0));
+    setMarginToMrpWholesaler(String(entry.marginToMrpWholesaler ?? 0));
+    setMarginToMrpDistributor(String(entry.marginToMrpDistributor ?? 0));
+    setPacking(String(entry.packing ?? 1));
+    setPurchaseQty(String(entry.purchaseQty ?? 1));
+    setSalesQty(String(entry.salesQty ?? 1));
+    setMinStockQty(String(entry.minStockQty ?? 0));
+    setWeightPerPiece(String(entry.weightPerPiece ?? 0));
+    setSchemeRemark(entry.schemeRemark ?? "");
+    setOpeningStockFreshCase(String(entry.openingStockFreshCase ?? 0));
+    setOpeningStockFreshPcs(String(entry.openingStockFreshPcs ?? 0));
+    setOpeningStockDamagedCase(String(entry.openingStockDamagedCase ?? 0));
+    setOpeningStockDamagedPcs(String(entry.openingStockDamagedPcs ?? 0));
+  };
+
+  const handleToggleMrpEntryActive = (index: number) => {
+    setMrpEntries((prev) =>
+      prev.map((e, i) => (i === index ? { ...e, mrpActive: !(e.mrpActive ?? true) } : e))
+    );
+    if (index === selectedEntryIndex) {
+      setMrpActive((prevVal) => !prevVal);
     }
   };
 
@@ -182,19 +394,8 @@ export default function EditItemPage() {
     const pQty = parseFloat(purchaseQty) || 1;
     const sQty = parseFloat(salesQty) || 1;
 
-    let totalPurchasePieces = 0;
-    if (purchaseType === "Carton") {
-      totalPurchasePieces = pQty * pack;
-    } else {
-      totalPurchasePieces = pQty;
-    }
-
-    let totalSalesPieces = 0;
-    if (salesType === "Carton") {
-      totalSalesPieces = sQty * pack;
-    } else {
-      totalSalesPieces = sQty;
-    }
+    let totalPurchasePieces = pQty > 0 ? pQty : 1;
+    let totalSalesPieces = sQty > 0 ? sQty : 1;
 
     let pRateForSalesQty = 0;
     if (totalPurchasePieces > 0) {
@@ -213,33 +414,23 @@ export default function EditItemPage() {
     setNetCostSelfPerPiece(ncSelfForSalesQty.toFixed(4));
     
     setLastCostRate(ncSelfTotal.toFixed(4));
-  }, [purchaseRate, packing, discountPercentage, gstPercentage, purchaseType, purchaseQty, salesType, salesQty]);
+  }, [purchaseRate, packing, discountPercentage, gstPercentage, purchaseQty, salesQty]);
 
   useEffect(() => {
     const baseRate = parseFloat(purchaseRatePerPiece) || 0;
     const ncSelf1Pc = parseFloat(netCostSelfPerPiece) || 0;
 
     const margCostRet = parseFloat(marginToCostRetailer) || 0;
-    if (margCostRet > 0) {
-      setSalesRateRetailer((baseRate + (baseRate * (margCostRet / 100))).toFixed(4));
-    }
+    setSalesRateRetailer((baseRate + (baseRate * (margCostRet / 100))).toFixed(4));
 
     const margCostWhole = parseFloat(marginToCostWholesaler) || 0;
-    if (margCostWhole > 0) {
-      setSalesRateWholesaler((baseRate + (baseRate * (margCostWhole / 100))).toFixed(4));
-    }
+    setSalesRateWholesaler((baseRate + (baseRate * (margCostWhole / 100))).toFixed(4));
 
     const margCostDist = parseFloat(marginToCostDistributor) || 0;
-    if (margCostDist > 0) {
-      setSalesRateDistributor((baseRate + (baseRate * (margCostDist / 100))).toFixed(4));
-    }
+    setSalesRateDistributor((baseRate + (baseRate * (margCostDist / 100))).toFixed(4));
   }, [marginToCostRetailer, marginToCostWholesaler, marginToCostDistributor, purchaseRatePerPiece]);
 
   useEffect(() => {
-    const srRet = parseFloat(salesRateRetailer) || 0;
-    const srWhole = parseFloat(salesRateWholesaler) || 0;
-    const srDist = parseFloat(salesRateDistributor) || 0;
-    
     const margCostRet = parseFloat(marginToCostRetailer) || 0;
     const margCostWhole = parseFloat(marginToCostWholesaler) || 0;
     const margCostDist = parseFloat(marginToCostDistributor) || 0;
@@ -257,7 +448,7 @@ export default function EditItemPage() {
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
-    if (!itemGroupId) newErrors.itemGroupId = "Group is required";
+    if (!supplierId) newErrors.supplierId = "Supplier is required";
     if (!name.trim()) newErrors.name = "Item Name is required";
     if (!hsnCode) newErrors.hsnCode = "HSN Code is required";
     if (!hsnPrint.trim()) newErrors.hsnPrint = "HSN (Print) is required";
@@ -280,56 +471,62 @@ export default function EditItemPage() {
 
     setSaving(true);
     try {
+      const finalMrpEntries = mrpEntries.length > 0 ? mrpEntries : [buildEntryFromFields()];
+      const primaryEntry = finalMrpEntries[selectedEntryIndex ?? 0] || finalMrpEntries[0];
+
       const payload: any = {
         companyId,
         itemName: name.trim(),
-        itemGroupId: itemGroupId || undefined,
+        supplierId: supplierId || undefined,
         itemSubGroupId: itemSubGroupId || undefined,
         gstPercentage: parseFloat(gstPercentage) || 0,
         hsnCode: hsnCode.trim(),
         hsnPrint: hsnPrint.trim(),
         codeBarCode: codeBarCode.trim(),
         uqcUnit: uqcUnit.trim(),
-        packing: parseFloat(packing) || 1,
-        weightPerPiece: parseFloat(weightPerPiece) || 0,
-        schemeRemark: schemeRemark.trim(),
+        packing: primaryEntry.packing ?? 1,
+        weightPerPiece: primaryEntry.weightPerPiece ?? 0,
+        schemeRemark: primaryEntry.schemeRemark ?? "",
         isActive: itemActive,
-        
-        mrp: parseFloat(mrp) || 0,
-        mrpActive,
-        purchaseRate: parseFloat(purchaseRate) || 0,
-        purchaseType,
-        purchaseQty: parseFloat(purchaseQty) || 1,
-        salesType,
-        salesQty: parseFloat(salesQty) || 1,
-        discountPercentage: parseFloat(discountPercentage) || 0,
-        marginToCostRetailer: parseFloat(marginToCostRetailer) || 0,
-        marginToCostWholesaler: parseFloat(marginToCostWholesaler) || 0,
-        marginToCostDistributor: parseFloat(marginToCostDistributor) || 0,
-        marginToMrpRetailer: parseFloat(marginToMrpRetailer) || 0,
-        marginToMrpWholesaler: parseFloat(marginToMrpWholesaler) || 0,
-        marginToMrpDistributor: parseFloat(marginToMrpDistributor) || 0,
-        retailRate: parseFloat(salesRateRetailer) || 0,
-        wholeSaleRate: parseFloat(salesRateWholesaler) || 0,
-        distributorRate: parseFloat(salesRateDistributor) || 0,
-        netCostRetailer: parseFloat(netCostCustomerRetailer) || 0,
-        netCostWholesaler: parseFloat(netCostCustomerWholesaler) || 0,
-        netCostDistributor: parseFloat(netCostCustomerDistributor) || 0,
-        netCostRetailerPerPiece: parseFloat(netCostCustomerRetailerPerPiece) || 0,
-        netCostWholesalerPerPiece: parseFloat(netCostCustomerWholesalerPerPiece) || 0,
-        netCostDistributorPerPiece: parseFloat(netCostCustomerDistributorPerPiece) || 0,
-        openingStockFreshCase: parseFloat(openingStockFreshCase) || 0,
-        openingStockFreshPcs: parseFloat(openingStockFreshPcs) || 0,
-        openingStockDamagedCase: parseFloat(openingStockDamagedCase) || 0,
-        openingStockDamagedPcs: parseFloat(openingStockDamagedPcs) || 0,
+        minStockQty: primaryEntry.minStockQty ?? 0,
+
+        mrp: primaryEntry.mrp,
+        mrpActive: primaryEntry.mrpActive,
+        purchaseRate: primaryEntry.purchaseRate,
+        purchaseType: "Carton", // Default to schema requirement
+        purchaseQty: primaryEntry.purchaseQty ?? 1,
+        salesType: "Pieces", // Default to schema requirement
+        salesQty: primaryEntry.salesQty ?? 1,
+        discountPercentage: primaryEntry.discountPercentage,
+        marginToCostRetailer: primaryEntry.marginToCostRetailer,
+        marginToCostWholesaler: primaryEntry.marginToCostWholesaler,
+        marginToCostDistributor: primaryEntry.marginToCostDistributor,
+        marginToMrpRetailer: primaryEntry.marginToMrpRetailer,
+        marginToMrpWholesaler: primaryEntry.marginToMrpWholesaler,
+        marginToMrpDistributor: primaryEntry.marginToMrpDistributor,
+        retailRate: primaryEntry.retailRate,
+        wholeSaleRate: primaryEntry.wholeSaleRate,
+        distributorRate: primaryEntry.distributorRate,
+        netCostRetailer: primaryEntry.netCostRetailer,
+        netCostWholesaler: primaryEntry.netCostWholesaler,
+        netCostDistributor: primaryEntry.netCostDistributor,
+        netCostRetailerPerPiece: primaryEntry.netCostRetailerPerPiece,
+        netCostWholesalerPerPiece: primaryEntry.netCostWholesalerPerPiece,
+        netCostDistributorPerPiece: primaryEntry.netCostDistributorPerPiece,
+        openingStockFreshCase: primaryEntry.openingStockFreshCase ?? 0,
+        openingStockFreshPcs: primaryEntry.openingStockFreshPcs ?? 0,
+        openingStockDamagedCase: primaryEntry.openingStockDamagedCase ?? 0,
+        openingStockDamagedPcs: primaryEntry.openingStockDamagedPcs ?? 0,
         lastCostRate: parseFloat(lastCostRate) || 0,
+        mrpEntries: finalMrpEntries,
       };
 
       await itemService.updateItem(itemId, payload);
+      toast.success("Item updated successfully");
       router.push("/items");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to update item");
+      toast.error(err.message || "Failed to update item");
     } finally {
       setSaving(false);
     }
@@ -353,28 +550,13 @@ export default function EditItemPage() {
 
   const inputClass = "!h-[32px] !py-1 !px-2 !text-sm !rounded-md !bg-white";
   const selectClass = "!h-[32px] !py-1 !px-2 !text-sm !rounded-md !bg-white flex items-center";
-  
-  const salesUnitLabel = `${salesQty} ${salesType}`;
 
-  const getPurchaseCalculation = () => {
-    const pQty = parseFloat(purchaseQty) || 0;
-    const pack = parseFloat(packing) || 1;
-    if (purchaseType === "Carton") {
-      return `= ${pQty * pack} Pieces`;
-    } else {
-      return `= ${(pQty / pack).toFixed(2)} Cartons`;
-    }
-  };
-
-  const getSalesCalculation = () => {
-    const sQty = parseFloat(salesQty) || 0;
-    const pack = parseFloat(packing) || 1;
-    if (salesType === "Carton") {
-      return `= ${sQty * pack} Pieces`;
-    } else {
-      return `= ${(sQty / pack).toFixed(2)} Cartons`;
-    }
-  };
+  const subGroupOptions = subGroups.filter(s => {
+    if (!supplierId) return false;
+    if (s.supplierId !== supplierId) return false;
+    if (name && s.itemNameId?.name !== name) return false;
+    return s.isActive !== false || s._id === itemSubGroupId;
+  });
 
   return (
     <div className="mx-auto bg-[#f0f0f0] min-h-screen font-sans">
@@ -391,26 +573,26 @@ export default function EditItemPage() {
         {/* Left Column - General Details */}
         <div className="flex-[1.15] border border-gray-300 bg-white p-4 rounded-md shadow-sm">
           
-          <table className="w-full border-separate" style={{ borderSpacing: '0 10px' }}>
+          <table className="w-full border-separate responsive-form-table" style={{ borderSpacing: '0 10px' }}>
             <tbody>
               <tr>
-                <td className="w-[180px] align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Group</td>
+                <td className="w-[180px] align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Supplier</td>
                 <td className="flex gap-2 items-start relative z-[60]">
                   <div className="w-72">
-                    <Select 
-                      options={groups
-                        .filter(g => g.isActive !== false || g._id === itemGroupId)
-                        .map(g => ({ value: g._id, label: g.name }))}
-                      value={itemGroupId} 
+                    <Select
+                      options={suppliers
+                        .filter(s => s.isActive !== false || s._id === supplierId)
+                        .map(s => ({ value: s._id, label: s.name }))}
+                      value={supplierId}
                       onChange={(val) => {
-                        setItemGroupId(val);
-                        setName(""); // Reset item name when group changes
+                        setSupplierId(val);
+                        setName(""); // Reset item name when supplier changes
                         if (val) loadItemNames(val);
                         else setItemNamesList([]);
                       }}
-                      error={errors.itemGroupId}
+                      error={errors.supplierId}
                       className={selectClass}
-                      placeholder="Select Group"
+                      placeholder="Select Supplier"
                     />
                   </div>
                   <div className="flex items-center gap-1 h-[32px] whitespace-nowrap font-medium text-gray-700 ml-4">
@@ -424,16 +606,34 @@ export default function EditItemPage() {
                 <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Item Name <span className="text-red-500 font-bold">*</span></td>
                 <td className="pr-4">
                   <div className="w-full">
-                    <Select 
+                    <Select
                       options={itemNamesList
                         .filter(inm => inm.isActive !== false || inm.name === name)
                         .map(inm => ({ value: inm.name, label: inm.name }))}
-                      value={name} 
-                      onChange={setName} 
-                      error={errors.name} 
+                      value={name}
+                      onChange={(val) => {
+                        setName(val);
+                        setItemSubGroupId(""); // Reset sub group when item name changes
+                      }}
+                      error={errors.name}
                       className={selectClass}
-                      placeholder="Select Item Name"
-                      disabled={!itemGroupId}
+                      placeholder={!supplierId ? "Select Supplier first" : itemNamesList.length === 0 ? "No item names for this supplier" : "Select Item Name"}
+                      disabled={!supplierId || itemNamesList.length === 0}
+                    />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Sub Group</td>
+                <td className="flex items-start gap-2 relative z-[55]">
+                  <div className="w-72">
+                    <Select
+                      options={subGroupOptions.map(s => ({ value: s._id, label: s.name }))}
+                      value={itemSubGroupId}
+                      onChange={setItemSubGroupId}
+                      className={selectClass}
+                      placeholder={!supplierId ? "Select Supplier first" : subGroupOptions.length === 0 ? "No sub groups for this item" : "Select Sub Group"}
+                      disabled={!supplierId || subGroupOptions.length === 0}
                     />
                   </div>
                 </td>
@@ -497,27 +697,7 @@ export default function EditItemPage() {
                 </td>
               </tr>
               <tr>
-                <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Sub Group</td>
-                <td className="flex items-start gap-2 relative z-[30]">
-                  <div className="w-72">
-                    <Select 
-                      options={subGroups
-                        .filter(s => {
-                          if (itemGroupId && s.itemGroupId !== itemGroupId) return false;
-                          if (name && s.itemNameId?.name !== name) return false;
-                          return s.isActive !== false || s._id === itemSubGroupId;
-                        })
-                        .map(s => ({ value: s._id, label: s.name }))}
-                      value={itemSubGroupId} 
-                      onChange={setItemSubGroupId}
-                      className={selectClass}
-                      placeholder="Select Sub Group"
-                    />
-                  </div>
-                </td>
-              </tr>
-              <tr>
-                <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Packing (Pieces in 1 Carton)</td>
+                <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Packing (Pieces in 1 Case)</td>
                 <td className="flex items-start gap-2">
                   <div className="w-32">
                     <Input type="number" min="1" value={packing} onChange={e => setPacking(e.target.value)} error={errors.packing} className={`${inputClass} text-right`} />
@@ -526,57 +706,38 @@ export default function EditItemPage() {
                 </td>
               </tr>
               <tr>
-                <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Purchase Type</td>
+                <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Purchase Rate (Price Per)</td>
                 <td className="flex items-start gap-2 relative z-[20]">
-                  <div className="w-24">
-                    <Select
-                      options={[
-                        { value: "Carton", label: "Carton" },
-                        { value: "Pieces", label: "Pieces" },
-                      ]}
-                      value={purchaseType}
-                      onChange={setPurchaseType}
-                      className={selectClass}
-                    />
-                  </div>
-                  <div className="w-20">
+                  <div className="w-32">
                     <Input type="number" min="1" value={purchaseQty} onChange={e => setPurchaseQty(e.target.value)} className={`${inputClass} text-right`} />
                   </div>
-                  <div className="pt-1.5 text-sm font-medium text-blue-600 whitespace-nowrap">
-                    {getPurchaseCalculation()}
-                  </div>
+                  <span className="text-red-500 font-bold mt-1.5">*</span>
                 </td>
               </tr>
               <tr>
-                <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Sales Type</td>
+                <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Sale Rate (Price Per)</td>
                 <td className="flex items-start gap-2 relative z-[10]">
-                  <div className="w-24">
-                    <Select
-                      options={[
-                        { value: "Carton", label: "Carton" },
-                        { value: "Pieces", label: "Pieces" },
-                      ]}
-                      value={salesType}
-                      onChange={setSalesType}
-                      className={selectClass}
-                    />
-                  </div>
-                  <div className="w-20">
+                  <div className="w-32">
                     <Input type="number" min="1" value={salesQty} onChange={e => setSalesQty(e.target.value)} className={`${inputClass} text-right`} />
                   </div>
-                  <div className="pt-1.5 text-sm font-medium text-blue-600 whitespace-nowrap">
-                    {getSalesCalculation()}
-                  </div>
+                  <span className="text-red-500 font-bold mt-1.5">*</span>
                 </td>
               </tr>
               <tr>
                 <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Reorder Level (in Pieces)</td>
-                <td className="pr-4">
-                  <Input type="number" value="0" readOnly className={`${inputClass} w-full bg-gray-50 text-gray-600`} />
+                <td className="flex items-start gap-2 pr-4">
+                  <div className="w-32">
+                    <Input type="number" min="0" value={minStockQty} onChange={e => setMinStockQty(e.target.value)} className={`${inputClass} text-right`} />
+                  </div>
+                  {parseFloat(minStockQty) > 0 && parseFloat(openingStockFreshPcs || "0") <= parseFloat(minStockQty) && (
+                    <span className="mt-1.5 text-xs font-semibold text-red-600 whitespace-nowrap">
+                      Low Stock ({openingStockFreshPcs || 0} Pcs left)
+                    </span>
+                  )}
                 </td>
               </tr>
               <tr>
-                <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Weight (Per 1 Piece) (Kg.)</td>
+                <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Weight (Per 1 {uqcUnit || 'Piece'}) (Kg.)</td>
                 <td className="pr-4">
                   <Input type="number" step="0.001" value={weightPerPiece} onChange={e => setWeightPerPiece(e.target.value)} className={`${inputClass} w-full`} />
                 </td>
@@ -589,39 +750,39 @@ export default function EditItemPage() {
               </tr>
             </tbody>
           </table>
-          <table className="w-full mt-2 border-separate" style={{ borderSpacing: '0 10px' }}>
+          <table className="w-full mt-4 border-separate responsive-form-table" style={{ borderSpacing: '0 10px' }}>
             <tbody>
               <tr>
                 <td className="w-44 align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Opng. Stock - Fresh</td>
                 <td className="flex items-center justify-end gap-2 pr-2">
                   <span className="font-medium text-gray-600">Qty.</span>
                   <div className="w-16">
-                    <Input 
-                      type="number" 
-                      value={openingStockFreshCase} 
+                    <Input
+                      type="number"
+                      value={openingStockFreshCase}
                       onChange={e => {
                         const val = e.target.value;
                         setOpeningStockFreshCase(val);
                         const c = parseFloat(val) || 0;
                         const p = parseFloat(packing) || 1;
                         setOpeningStockFreshPcs((c * p).toFixed(0));
-                      }} 
-                      className={`${inputClass} text-right`} 
+                      }}
+                      className={`${inputClass} text-right`}
                     />
                   </div>
                   <span className="font-medium text-gray-600">Carton</span>
                   <div className="w-16">
-                    <Input 
-                      type="number" 
-                      value={openingStockFreshPcs} 
+                    <Input
+                      type="number"
+                      value={openingStockFreshPcs}
                       onChange={e => {
                         const val = e.target.value;
                         setOpeningStockFreshPcs(val);
                         const pcs = parseFloat(val) || 0;
                         const p = parseFloat(packing) || 1;
                         setOpeningStockFreshCase((pcs / p).toFixed(2));
-                      }} 
-                      className={`${inputClass} text-right`} 
+                      }}
+                      className={`${inputClass} text-right`}
                     />
                   </div>
                   <span className="font-medium text-gray-600">Pcs</span>
@@ -632,32 +793,32 @@ export default function EditItemPage() {
                 <td className="flex items-center justify-end gap-2 pr-2">
                   <span className="font-medium text-gray-600">Qty.</span>
                   <div className="w-16">
-                    <Input 
-                      type="number" 
-                      value={openingStockDamagedCase} 
+                    <Input
+                      type="number"
+                      value={openingStockDamagedCase}
                       onChange={e => {
                         const val = e.target.value;
                         setOpeningStockDamagedCase(val);
                         const c = parseFloat(val) || 0;
                         const p = parseFloat(packing) || 1;
                         setOpeningStockDamagedPcs((c * p).toFixed(0));
-                      }} 
-                      className={`${inputClass} text-right`} 
+                      }}
+                      className={`${inputClass} text-right`}
                     />
                   </div>
                   <span className="font-medium text-gray-600">Carton</span>
                   <div className="w-16">
-                    <Input 
-                      type="number" 
-                      value={openingStockDamagedPcs} 
+                    <Input
+                      type="number"
+                      value={openingStockDamagedPcs}
                       onChange={e => {
                         const val = e.target.value;
                         setOpeningStockDamagedPcs(val);
                         const pcs = parseFloat(val) || 0;
                         const p = parseFloat(packing) || 1;
                         setOpeningStockDamagedCase((pcs / p).toFixed(2));
-                      }} 
-                      className={`${inputClass} text-right`} 
+                      }}
+                      className={`${inputClass} text-right`}
                     />
                   </div>
                   <span className="font-medium text-gray-600">Pcs</span>
@@ -676,41 +837,84 @@ export default function EditItemPage() {
         {/* Right Column - Pricing/Stock Details */}
         <div className="flex-1 border border-gray-300 bg-white p-4 rounded-md shadow-sm flex flex-col gap-6">
           
-          {/* Top small MRP table (mock) */}
+          {/* Multi-MRP grid */}
           <div className="flex gap-2">
-            <div className="flex-1 border border-gray-300 overflow-hidden bg-white rounded-md h-32">
+            <div className="flex-1 border border-gray-300 bg-white rounded-md h-32 overflow-y-auto overflow-x-auto">
               <table className="w-full text-center border-collapse">
                 <thead>
-                  <tr className="bg-gray-100 border-b border-gray-300 text-gray-700">
+                  <tr className="bg-gray-100 border-b border-gray-300 text-gray-700 sticky top-0">
                     <th className="border-r border-gray-300 py-1.5 font-medium w-6"></th>
                     <th className="border-r border-gray-300 py-1.5 font-medium">MRP Rate</th>
                     <th className="border-r border-gray-300 py-1.5 font-medium">Self Cost</th>
                     <th className="border-r border-gray-300 py-1.5 font-medium">Rt.Cost</th>
                     <th className="border-r border-gray-300 py-1.5 font-medium">Wh.Cost</th>
+                    <th className="py-1.5 font-medium">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-gray-200 text-blue-900 bg-blue-50">
-                    <td className="border-r border-gray-300 py-1.5 text-[10px]">▶</td>
-                    <td className="border-r border-gray-300 py-1.5 font-semibold">{parseFloat(mrp).toFixed(2)}</td>
-                    <td className="border-r border-gray-300 py-1.5 font-semibold">{parseFloat(netCostSelf).toFixed(4)}</td>
-                    <td className="border-r border-gray-300 py-1.5 font-semibold">{parseFloat(netCostCustomerRetailer).toFixed(4)}</td>
-                    <td className="border-r border-gray-300 py-1.5 font-semibold">{parseFloat(netCostCustomerWholesaler).toFixed(4)}</td>
-                  </tr>
-                  <tr className="border-b border-gray-100"><td colSpan={5} className="py-3.5"></td></tr>
-                  <tr className="border-b border-gray-100"><td colSpan={5} className="py-3.5"></td></tr>
+                  {mrpEntries.map((entry, idx) => (
+                    <tr
+                      key={idx}
+                      onClick={() => handleSelectMrpEntry(idx)}
+                      className={`border-b border-gray-200 cursor-pointer ${
+                        idx === selectedEntryIndex ? "text-blue-900 bg-blue-50" : "text-gray-700 hover:bg-gray-50"
+                      } ${entry.mrpActive === false ? "opacity-50" : ""}`}
+                    >
+                      <td className="border-r border-gray-300 py-1.5 text-[10px]">{idx === selectedEntryIndex ? "▶" : ""}</td>
+                      <td className="border-r border-gray-300 py-1.5 font-semibold">{(entry.mrp || 0).toFixed(2)}</td>
+                      <td className="border-r border-gray-300 py-1.5 font-semibold">{(entry.netCostSelf || 0).toFixed(4)}</td>
+                      <td className="border-r border-gray-300 py-1.5 font-semibold">{(entry.netCostRetailer || 0).toFixed(4)}</td>
+                      <td className="border-r border-gray-300 py-1.5 font-semibold">{(entry.netCostWholesaler || 0).toFixed(4)}</td>
+                      <td className="py-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleMrpEntryActive(idx);
+                          }}
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
+                            entry.mrpActive !== false
+                              ? "bg-green-100 text-green-800 hover:bg-green-200"
+                              : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                          }`}
+                        >
+                          {entry.mrpActive !== false ? "Active" : "Inactive"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {mrpEntries.length === 0 && (
+                    <tr><td colSpan={6} className="py-3.5 text-gray-400 text-xs">No MRP entries yet</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
             <div className="flex flex-col gap-1.5 w-20 shrink-0">
-              <button type="button" className="bg-gray-50 border border-gray-300 py-1.5 rounded text-gray-700 hover:bg-gray-100 transition">Plus</button>
-              <button type="button" className="bg-gray-50 border border-gray-300 py-1.5 rounded text-gray-700 hover:bg-gray-100 transition">Minus</button>
-              <button type="button" className="bg-gray-50 border border-gray-300 py-1.5 rounded text-gray-700 hover:bg-gray-100 transition">Modify</button>
+              <button type="button" onClick={handleAddMrpEntry} className="bg-gray-50 border border-gray-300 py-1.5 rounded text-gray-700 hover:bg-gray-100 transition">Add</button>
+              <button
+                type="button"
+                onClick={handleEditMrpEntry}
+                disabled={selectedEntryIndex === null}
+                className="bg-gray-50 border border-gray-300 py-1.5 rounded text-gray-700 hover:bg-gray-100 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedEntryIndex === null) return;
+                  setConfirmDeleteMrp(true);
+                }}
+                disabled={selectedEntryIndex === null || mrpEntries.length <= 1}
+                className="bg-gray-50 border border-gray-300 py-1.5 rounded text-red-600 hover:bg-red-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Delete
+              </button>
             </div>
           </div>
 
           {/* Pricing inputs */}
-          <table className="w-full border-separate" style={{ borderSpacing: '0 10px' }}>
+          <table className="w-full border-separate responsive-form-table" style={{ borderSpacing: '0 10px' }}>
             <tbody>
               <tr>
                 <td className="font-bold text-gray-800 whitespace-nowrap">M.R.P. Rs.</td>
@@ -724,13 +928,13 @@ export default function EditItemPage() {
                 </td>
               </tr>
               <tr>
-                <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Purchase Rate</td>
+                <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Purchase Rate (Before GST)</td>
                 <td className="pr-2">
                   <Input type="number" value={purchaseRate} onChange={e => setPurchaseRate(e.target.value)} className={`${inputClass} w-48 text-right ml-auto block`} />
                 </td>
               </tr>
               <tr>
-                <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Purchase Rate ({salesUnitLabel})</td>
+                <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Purchase Rate (Before GST, Per Piece)</td>
                 <td className="pr-2">
                   <Input value={purchaseRatePerPiece} readOnly className={`${inputClass} w-48 text-right ml-auto block bg-gray-50 text-gray-600`} />
                 </td>
@@ -747,13 +951,13 @@ export default function EditItemPage() {
                 </td>
               </tr>
               <tr>
-                <td className="align-top pt-1.5 font-bold text-blue-900 whitespace-nowrap">Net Cost - Self</td>
+                <td className="align-top pt-1.5 font-bold text-blue-900 whitespace-nowrap">Net Cost - Self (After GST)</td>
                 <td className="pr-2">
                   <Input value={netCostSelf} readOnly className={`${inputClass} w-48 text-right ml-auto block font-bold text-blue-900 bg-gray-100`} />
                 </td>
               </tr>
               <tr>
-                <td className="align-top pt-1.5 font-bold text-gray-800 whitespace-nowrap">Net Cost - Self ({salesUnitLabel})</td>
+                <td className="align-top pt-1.5 font-bold text-gray-800 whitespace-nowrap">Net Cost - Self (After GST, Per Piece)</td>
                 <td className="pr-2">
                   <Input value={netCostSelfPerPiece} readOnly className={`${inputClass} w-48 text-right ml-auto block font-bold bg-gray-100`} />
                 </td>
@@ -763,7 +967,7 @@ export default function EditItemPage() {
 
           {/* Margins table-like section */}
           <div className="mt-2">
-            <table className="w-full border-separate" style={{ borderSpacing: '0 10px' }}>
+            <table className="w-full border-separate responsive-form-table" style={{ borderSpacing: '0 10px' }}>
               <thead>
                 <tr>
                   <th></th>
@@ -774,7 +978,7 @@ export default function EditItemPage() {
               </thead>
               <tbody>
                 <tr>
-                  <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Margin %age (Cost)</td>
+                  <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Margin %age (Before GST Cost)</td>
                   <td className="px-1"><Input type="number" value={marginToCostRetailer} onChange={e => setMarginToCostRetailer(e.target.value)} className={`${inputClass} text-right text-blue-700`} /></td>
                   <td className="px-1"><Input type="number" value={marginToCostWholesaler} onChange={e => setMarginToCostWholesaler(e.target.value)} className={`${inputClass} text-right text-blue-700`} /></td>
                   <td className="px-1"><Input type="number" value={marginToCostDistributor} onChange={e => setMarginToCostDistributor(e.target.value)} className={`${inputClass} text-right text-blue-700`} /></td>
@@ -786,19 +990,19 @@ export default function EditItemPage() {
                   <td className="px-1"><Input type="number" value={marginToMrpDistributor} onChange={e => setMarginToMrpDistributor(e.target.value)} className={`${inputClass} text-right text-blue-700`} /></td>
                 </tr>
                 <tr>
-                  <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Sales Rate</td>
+                  <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Sales Rate (Before GST)</td>
                   <td className="px-1"><Input type="number" value={salesRateRetailer} onChange={e => setSalesRateRetailer(e.target.value)} className={`${inputClass} text-right text-blue-700`} /></td>
                   <td className="px-1"><Input type="number" value={salesRateWholesaler} onChange={e => setSalesRateWholesaler(e.target.value)} className={`${inputClass} text-right text-blue-700`} /></td>
                   <td className="px-1"><Input type="number" value={salesRateDistributor} onChange={e => setSalesRateDistributor(e.target.value)} className={`${inputClass} text-right text-blue-700`} /></td>
                 </tr>
                 <tr>
-                  <td className="align-top pt-1.5 font-bold text-blue-900 whitespace-nowrap">Net Cost</td>
+                  <td className="align-top pt-1.5 font-bold text-blue-900 whitespace-nowrap">Net Cost (After GST)</td>
                   <td className="px-1"><Input value={netCostCustomerRetailer} readOnly className={`${inputClass} text-right font-bold text-blue-900 bg-gray-100`} /></td>
                   <td className="px-1"><Input value={netCostCustomerWholesaler} readOnly className={`${inputClass} text-right font-bold text-blue-900 bg-gray-100`} /></td>
                   <td className="px-1"><Input value={netCostCustomerDistributor} readOnly className={`${inputClass} text-right font-bold text-blue-900 bg-gray-100`} /></td>
                 </tr>
                 <tr>
-                  <td className="align-top pt-1.5 font-bold text-gray-800 whitespace-nowrap">Net Cost ({salesUnitLabel})</td>
+                  <td className="align-top pt-1.5 font-bold text-gray-800 whitespace-nowrap">Net Cost (After GST, Per Piece)</td>
                   <td className="px-1"><Input value={netCostCustomerRetailerPerPiece} readOnly className={`${inputClass} text-right font-bold bg-gray-100`} /></td>
                   <td className="px-1"><Input value={netCostCustomerWholesalerPerPiece} readOnly className={`${inputClass} text-right font-bold bg-gray-100`} /></td>
                   <td className="px-1"><Input value={netCostCustomerDistributorPerPiece} readOnly className={`${inputClass} text-right font-bold bg-gray-100`} /></td>
@@ -812,6 +1016,17 @@ export default function EditItemPage() {
         </div>
 
       </div>
+
+      <ConfirmationDialog
+        isOpen={confirmDeleteMrp}
+        onClose={() => setConfirmDeleteMrp(false)}
+        onConfirm={confirmDeleteMrpEntry}
+        title="Delete MRP Entry"
+        message="Delete this MRP entry? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }

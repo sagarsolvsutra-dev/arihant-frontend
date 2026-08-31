@@ -92,7 +92,7 @@ export const api = {
     }),
 
   // Masters
-  getWarehouses: () => request(API_ENDPOINTS.WAREHOUSES, {}, false),
+  getWarehouses: () => request(API_ENDPOINTS.GODOWNS, {}, false),
   getItems: () => request(API_ENDPOINTS.ITEMS, {}, false),
   getHSN: () => request(API_ENDPOINTS.HSN, {}, false),
   getCustomers: () => request(API_ENDPOINTS.CUSTOMERS, {}, false),
@@ -104,11 +104,11 @@ export const api = {
 
   // Sales
   getSales: () => request(API_ENDPOINTS.SALES, {}, false),
-  getSalesReturn: () => request(API_ENDPOINTS.SALES_RETURN, {}, false),
+  getSaleReturns: () => request(API_ENDPOINTS.SALE_RETURNS, {}, false),
 
   // Purchase
   getPurchases: () => request(API_ENDPOINTS.PURCHASES, {}, false),
-  getPurchaseReturn: () => request(API_ENDPOINTS.PURCHASE_RETURN, {}, false),
+  getPurchaseReturns: () => request(API_ENDPOINTS.PURCHASE_RETURNS, {}, false),
 
   // Inventory
   getStock: () => request(API_ENDPOINTS.STOCK, {}, false),

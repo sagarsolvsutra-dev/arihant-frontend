@@ -10,6 +10,7 @@ import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { itemService } from "@/services/itemService";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface ItemRecord {
   id?: string;
@@ -25,6 +26,7 @@ interface ItemRecord {
   packing?: number;
   purchaseType?: string;
   purchaseQty?: number;
+  itemSubGroupId?: { _id: string; name: string } | string;
   isActive: boolean;
 }
 
@@ -40,6 +42,7 @@ export default function ItemsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState<ItemRecord | null>(null);
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!companyId) return;
@@ -62,10 +65,31 @@ export default function ItemsPage() {
         setRecords(list.map((i: any) => ({ ...i, id: i._id })));
         setTotalPages(1);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-    } finally {
+      toast.error(err.message || "An error occurred");
+} finally {
       setLoading(false);
+    }
+  };
+
+  const toggleActive = async (r: ItemRecord) => {
+    if (togglingIds.has(r._id)) return; // a request for this row is already in flight
+    setTogglingIds((prev) => new Set(prev).add(r._id));
+    const nextActive = !r.isActive;
+    try {
+      await itemService.updateItem(r._id, { isActive: nextActive });
+      setRecords((prev) => prev.map((it) => (it._id === r._id ? { ...it, isActive: nextActive } : it)));
+      toast.success(`Item marked ${nextActive ? "Active" : "Inactive"}`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to update status");
+    } finally {
+      setTogglingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(r._id);
+        return next;
+      });
     }
   };
 
@@ -74,9 +98,11 @@ export default function ItemsPage() {
     try {
       await itemService.deleteItem(deletingRecord._id);
       loadRecords();
-    } catch (err) {
+      toast.success("Deleted successfully");
+    } catch (err: any) {
       console.error(err);
-    } finally {
+      toast.error(err.message || "An error occurred");
+} finally {
       setIsDeleteOpen(false);
       setDeletingRecord(null);
     }
@@ -88,9 +114,14 @@ export default function ItemsPage() {
   };
 
   const columns = [
-    { key: "name", header: "Name", accessor: (r: ItemRecord) => r.itemName },
+    { key: "name", header: "Name", accessor: (r: ItemRecord) => r.itemName, primary: true },
     { key: "code", header: "Code", accessor: (r: ItemRecord) => r.codeBarCode || "-" },
     { key: "hsn", header: "HSN", accessor: (r: ItemRecord) => r.hsnCode || "-" },
+    {
+      key: "subGroup",
+      header: "Sub Group",
+      accessor: (r: ItemRecord) => (typeof r.itemSubGroupId === "object" ? r.itemSubGroupId?.name : "") || "-",
+    },
     { key: "uqc", header: "UQC", accessor: (r: ItemRecord) => r.uqcUnit || "-" },
     { key: "packing", header: "Packing", accessor: (r: ItemRecord) => r.packing || "1" },
     { key: "purchaseType", header: "Pur. Type", accessor: (r: ItemRecord) => r.purchaseType || "-" },
@@ -107,22 +138,26 @@ export default function ItemsPage() {
       key: "status",
       header: "Status",
       accessor: (r: ItemRecord) => (
-        <span
-          className={`px-2 py-1 rounded-full text-xs font-medium ${
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); toggleActive(r); }}
+          disabled={togglingIds.has(r._id)}
+          title="Click to toggle status"
+          className={`px-2 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
             r.isActive
-              ? "bg-gray-100 text-gray-900"
-              : "bg-gray-50 text-gray-500"
+              ? "bg-green-100 text-green-800 hover:bg-green-200"
+              : "bg-gray-100 text-gray-500 hover:bg-gray-200"
           }`}
         >
           {r.isActive ? "Active" : "Inactive"}
-        </span>
+        </button>
       ),
     },
     {
       key: "actions",
       header: "Actions",
       accessor: (r: ItemRecord) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
           <EditButton onClick={() => router.push(`/items/edit/${r._id}`)} />
           <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
         </div>
@@ -164,6 +199,7 @@ export default function ItemsPage() {
           data={records}
           isLoading={loading}
           emptyMessage="No items found"
+          onRowClick={(r) => router.push(`/items/stock/${r._id}`)}
           pagination={{
             currentPage: page,
             totalPages,

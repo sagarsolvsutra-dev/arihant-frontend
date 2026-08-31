@@ -8,6 +8,7 @@ import { FormToolbar } from "@/components/ui/FormToolbar";
 import { useCompany } from "@/context/CompanyContext";
 import { openingBillService } from "@/services/openingBillService";
 import { supplierService } from "@/services/supplierService";
+import { toast } from "sonner";
 
 export default function EditPurchaseOpeningBillPage() {
   const router = useRouter();
@@ -29,7 +30,7 @@ export default function EditPurchaseOpeningBillPage() {
 
   useEffect(() => {
     if (companyId) {
-      supplierService.getSuppliers(companyId).then((res) => {
+      supplierService.getSuppliers(companyId, 1, 1000).then((res) => {
         setSuppliers(res.data || res || []);
       });
     }
@@ -54,7 +55,7 @@ export default function EditPurchaseOpeningBillPage() {
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!companyId || !supplierId || !billDate || !billNumber || !amount) {
-      alert("Please fill all required fields");
+      toast.error("Please fill all required fields");
       return;
     }
 
@@ -68,9 +69,9 @@ export default function EditPurchaseOpeningBillPage() {
         pendingAmount: parseFloat(pendingAmount) || parseFloat(amount),
       });
       router.push("/opening-bills/purchase");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to update bill");
+      toast.error(err.message || "Failed to update bill");
     } finally {
       setSaving(false);
     }
