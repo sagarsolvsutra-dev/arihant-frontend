@@ -114,7 +114,7 @@ export default function PurchaseListPage() {
     { key: "totalItems", header: "Items", accessor: (r: PurchaseRecord) => r.totalItems ?? 0 },
     { key: "totalCase", header: "Case", accessor: (r: PurchaseRecord) => r.totalCase ?? 0 },
     { key: "totalPcsLoose", header: "Loose", accessor: (r: PurchaseRecord) => r.totalPcs ?? 0 },
-    { key: "totalQty", header: "Total Qty", accessor: (r: PurchaseRecord) => (r.totalQty ?? 0).toFixed ? (r.totalQty ?? 0).toFixed(0) : r.totalQty },
+    { key: "totalQty", header: "Total Qty", accessor: (r: PurchaseRecord) => (r.totalQty ?? 0).toFixed(0) },
     {
       key: "netAmount",
       header: "Net Amount",
