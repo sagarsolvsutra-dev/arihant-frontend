@@ -43,7 +43,7 @@ export const API_ENDPOINTS = {
 
   // Inventory
   STOCK: `${API_BASE_URL}/stock`,
-  STOCK_TRANSFER: `${API_BASE_URL}/stock-transfer`,
+  STOCK_TRANSFERS: `${API_BASE_URL}/stock-transfers`,
   STOCK_ADJUSTMENT: `${API_BASE_URL}/stock-adjustment`,
   STOCK_LEDGER: `${API_BASE_URL}/stock-ledger`,
 

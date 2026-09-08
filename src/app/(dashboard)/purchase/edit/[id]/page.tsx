@@ -43,6 +43,7 @@ interface ItemRecord {
   itemName: string;
   hsnCode?: string;
   supplierId?: { _id: string; name: string } | string;
+  itemSubGroupId?: { _id: string; name: string } | string;
   mrp?: number;
   purchaseRate?: number;
   purchaseQty?: number;
@@ -73,6 +74,7 @@ interface Line {
   pcsQty: number;
   freeQty: number;
   totalPieces: number;
+  godownId: string;
   beforeGstRate: number;
   lessPercent: number;
   lessRs: number;
@@ -124,6 +126,23 @@ function toDateInputValue(d: any) {
   return date.toISOString().slice(0, 10);
 }
 
+// "Godown Name - Group Name" — auto-derived from the godown's own godownGroupId
+// (already populated by godownService.getGodowns), instead of relying on the group
+// being manually typed into the godown's name.
+function godownLabel(g: { name: string; godownGroupId?: { _id: string; name: string } | string | null }) {
+  const groupName = typeof g.godownGroupId === "object" && g.godownGroupId ? g.godownGroupId.name : "";
+  return groupName ? `${g.name} - ${groupName}` : g.name;
+}
+
+// Same item name can legitimately repeat across different Sub Groups — include the
+// Sub Group in the Item Name dropdown's own label so two "Namkeen"s are distinguishable
+// without having to already know which HSN code belongs to which.
+function itemLabel(i: { itemName: string; hsnCode?: string; itemSubGroupId?: { _id: string; name: string } | string }) {
+  const subGroupName = typeof i.itemSubGroupId === "object" && i.itemSubGroupId ? i.itemSubGroupId.name : "";
+  const namePart = subGroupName ? `${i.itemName} - ${subGroupName}` : i.itemName;
+  return i.hsnCode ? `${namePart} (${i.hsnCode})` : namePart;
+}
+
 export default function EditPurchasePage() {
   const router = useRouter();
   const params = useParams();
@@ -137,18 +156,23 @@ export default function EditPurchasePage() {
   // from firing two concurrent saves that could race on the same item's stock update.
   const savingRef = useRef(false);
   const [items, setItems] = useState<ItemRecord[]>([]);
+  // Unfiltered — see purchase/add/page.tsx for why this exists alongside `items`.
+  const [allItems, setAllItems] = useState<ItemRecord[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierRecord[]>([]);
-  const [godowns, setGodowns] = useState<{ _id: string; name: string }[]>([]);
+  const [godowns, setGodowns] = useState<{ _id: string; name: string; godownGroupId?: { _id: string; name: string } | string | null }[]>([]);
 
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState("");
   const [receivingDate, setReceivingDate] = useState("");
-  const [godownId, setGodownId] = useState("");
+  const [ewayBillNo, setEwayBillNo] = useState("");
   const [notes, setNotes] = useState("");
   const [paidAmount, setPaidAmount] = useState("0");
   const [dueDate, setDueDate] = useState("");
 
   const [supplierId, setSupplierId] = useState("");
+  // Per-line, not header-level — each added line carries its own godown, so a single
+  // Purchase can send different items to different godowns.
+  const [godownId, setGodownId] = useState("");
   const [selectedItemId, setSelectedItemId] = useState("");
   const [selectedRateIndex, setSelectedRateIndex] = useState<number | null>(null);
   const [mrp, setMrp] = useState("0");
@@ -170,6 +194,7 @@ export default function EditPurchasePage() {
     if (!companyId) return;
     itemService.getItems(companyId, 1, 1000).then((res: any) => {
       const list = res.data || res || [];
+      setAllItems(list);
       setItems(list.filter((i: ItemRecord) => i.isActive !== false));
     });
     supplierService.getSuppliers(companyId, 1, 1000).then((res: any) => {
@@ -190,7 +215,7 @@ export default function EditPurchasePage() {
         setInvoiceNo(p.invoiceNo || "");
         setInvoiceDate(toDateInputValue(p.invoiceDate));
         setReceivingDate(toDateInputValue(p.receivingDate));
-        setGodownId(typeof p.godownId === "string" ? p.godownId : p.godownId?._id || "");
+        setEwayBillNo(p.ewayBillNo || "");
         setNotes(p.notes || "");
         setPaidAmount(String(p.paidAmount ?? 0));
         setDueDate(toDateInputValue(p.dueDate));
@@ -202,6 +227,7 @@ export default function EditPurchasePage() {
             packing: it.packing,
             purchaseQty: it.purchaseQty,
             mrp: it.mrp,
+            godownId: typeof it.godownId === "string" ? it.godownId : it.godownId?._id || "",
             caseQty: it.caseQty,
             pcsQty: it.pcsQty,
             freeQty: it.freeQty,
@@ -236,7 +262,16 @@ export default function EditPurchasePage() {
     ? items.filter((i) => (typeof i.supplierId === "string" ? i.supplierId : i.supplierId?._id) === supplierId)
     : items;
 
-  const selectedItem = items.find((i) => i._id === selectedItemId) || null;
+  // See purchase/add/page.tsx for why this fallback exists — keeps a deactivated (or
+  // supplier-filtered-out) item that's currently loaded into the entry row visible
+  // and selectable instead of silently vanishing.
+  const selectedItemFallback =
+    selectedItemId && !itemsForSupplier.some((i) => i._id === selectedItemId)
+      ? allItems.find((i) => i._id === selectedItemId)
+      : undefined;
+  const itemDropdownOptions = selectedItemFallback ? [...itemsForSupplier, selectedItemFallback] : itemsForSupplier;
+
+  const selectedItem = items.find((i) => i._id === selectedItemId) || allItems.find((i) => i._id === selectedItemId) || null;
 
   const activeRateEntries = (selectedItem?.mrpEntries || []).filter((e) => e.mrpActive !== false);
 
@@ -268,13 +303,17 @@ export default function EditPurchasePage() {
 
   const selectedRateEntry = selectedRateIndex !== null ? activeRateEntries[selectedRateIndex] : null;
 
-  const effectiveItem = selectedItem
-    ? {
-        ...selectedItem,
-        packing: selectedRateEntry?.packing ?? selectedItem.packing,
-        purchaseQty: selectedRateEntry?.purchaseQty ?? selectedItem.purchaseQty,
-      }
-    : null;
+  // See purchase/add/page.tsx — memoized so it only changes reference when
+  // selectedItem/selectedRateEntry actually do, instead of defeating the `preview`
+  // useMemo below by being a fresh object literal every render.
+  const effectiveItem = useMemo(() => {
+    if (!selectedItem) return null;
+    return {
+      ...selectedItem,
+      packing: selectedRateEntry?.packing ?? selectedItem.packing,
+      purchaseQty: selectedRateEntry?.purchaseQty ?? selectedItem.purchaseQty,
+    };
+  }, [selectedItem, selectedRateEntry]);
 
   const preview = useMemo(() => {
     if (!effectiveItem) return null;
@@ -318,6 +357,10 @@ export default function EditPurchasePage() {
     const rate = parseFloat(beforeGstRate) || 0;
     const lessRsVal = parseFloat(lessRs) || 0;
     const cdRsVal = parseFloat(cdRs) || 0;
+    if (!godownId) {
+      toast.error("Select a Godown for this line");
+      return;
+    }
     if (c <= 0 && p <= 0) {
       toast.error("Enter Case or Pcs quantity");
       return;
@@ -331,6 +374,12 @@ export default function EditPurchasePage() {
       return;
     }
     if (!preview) return;
+    // See purchase/add/page.tsx — nothing previously capped combined discounts
+    // against the line's own amount.
+    if (preview.taxableValue < 0) {
+      toast.error("Discounts cannot exceed the line amount");
+      return;
+    }
 
     const line: Line = {
       key: `${selectedItem._id}-${Date.now()}`,
@@ -339,6 +388,7 @@ export default function EditPurchasePage() {
       packing: preview.packing,
       purchaseQty: preview.purchaseQty,
       mrp: parseFloat(mrp) || 0,
+      godownId,
       caseQty: c,
       pcsQty: p,
       freeQty: parseFloat(freeQty) || 0,
@@ -365,15 +415,18 @@ export default function EditPurchasePage() {
   };
 
   const handleEditLine = (line: Line) => {
-    const targetItem = items.find((i) => i._id === line.itemId);
+    const targetItem = items.find((i) => i._id === line.itemId) || allItems.find((i) => i._id === line.itemId);
     const targetActiveEntries = (targetItem?.mrpEntries || []).filter((e) => e.mrpActive !== false);
     const idx = targetActiveEntries.findIndex((e) => Math.abs((e.mrp ?? 0) - line.mrp) < 0.001);
     const targetSupplierId = typeof targetItem?.supplierId === "string" ? targetItem.supplierId : targetItem?.supplierId?._id;
 
     skipAutoFillRef.current = true;
-    if (targetSupplierId) setSupplierId(targetSupplierId);
+    // If the target item has no supplier, clear the filter rather than leaving a
+    // stale one active — see purchase/add/page.tsx.
+    setSupplierId(targetSupplierId || "");
     setSelectedItemId(line.itemId);
     setSelectedRateIndex(idx >= 0 ? idx : null);
+    setGodownId(line.godownId);
     setMrp(String(line.mrp));
     setCaseQty(String(line.caseQty));
     setPcsQty(String(line.pcsQty));
@@ -404,6 +457,10 @@ export default function EditPurchasePage() {
     );
   }, [lines]);
 
+  // See purchase/add/page.tsx — negative means a genuine advance/credit balance,
+  // not an error; left unclamped, shown as a clearly-labeled Advance instead.
+  const pendingAmountValue = totals.netAmount - (parseFloat(paidAmount) || 0);
+
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!companyId) return;
@@ -411,10 +468,6 @@ export default function EditPurchasePage() {
 
     if (!invoiceNo.trim() || !invoiceDate) {
       toast.error("Please fill Invoice No and Invoice Date");
-      return;
-    }
-    if (!godownId) {
-      toast.error("Please select a Godown");
       return;
     }
     if (lines.length === 0) {
@@ -429,13 +482,14 @@ export default function EditPurchasePage() {
         invoiceNo: invoiceNo.trim(),
         invoiceDate,
         receivingDate: receivingDate || null,
-        godownId,
+        ewayBillNo,
         notes,
         paidAmount: parseFloat(paidAmount) || 0,
         dueDate: dueDate || null,
         items: lines.map((l) => ({
           itemId: l.itemId,
           mrp: l.mrp,
+          godownId: l.godownId,
           caseQty: l.caseQty,
           pcsQty: l.pcsQty,
           freeQty: l.freeQty,
@@ -503,6 +557,14 @@ export default function EditPurchasePage() {
   const gridColumns = [
     { key: "idx", header: "#", accessor: (_: Line, i: number) => i + 1 },
     { key: "item", header: "Item Name", accessor: (l: Line) => l.itemName },
+    {
+      key: "godown",
+      header: "Godown",
+      accessor: (l: Line) => {
+        const g = godowns.find((gd) => gd._id === l.godownId);
+        return g ? godownLabel(g) : "-";
+      },
+    },
     { key: "mrp", header: "MRP Rs", align: "right" as const, accessor: (l: Line) => l.mrp.toFixed(2) },
     { key: "case", header: "Case", align: "right" as const, accessor: (l: Line) => l.caseQty },
     { key: "pcs", header: "Pcs", align: "right" as const, accessor: (l: Line) => l.pcsQty },
@@ -535,7 +597,7 @@ export default function EditPurchasePage() {
         onClose={() => router.push("/purchase")}
       />
 
-      <div className="p-3 flex flex-col xl:flex-row gap-4 max-w-[1500px] mx-auto text-sm">
+      <div className="p-3 flex flex-col xl:flex-row gap-4 text-sm">
         {/* Left Column */}
         <div className="flex-1 min-w-0 flex flex-col gap-4">
           {/* Header */}
@@ -567,16 +629,10 @@ export default function EditPurchasePage() {
                   </td>
                 </tr>
                 <tr>
-                  <td className={rowLabel}>Godown <span className="text-red-500 font-bold">*</span></td>
-                  <td className="relative z-[63]">
+                  <td className={rowLabel}>E-Way Bill No.</td>
+                  <td>
                     <div className="w-48">
-                      <Select
-                        options={godowns.map((g) => ({ value: g._id, label: g.name }))}
-                        value={godownId}
-                        onChange={setGodownId}
-                        className={selectClass}
-                        placeholder="Select Godown"
-                      />
+                      <Input value={ewayBillNo} onChange={(e) => setEwayBillNo(e.target.value)} className={inputClass} />
                     </div>
                   </td>
                 </tr>
@@ -614,12 +670,24 @@ export default function EditPurchasePage() {
                   <td className={rowLabel}>Item Name</td>
                   <td className="relative z-[55]">
                     <Select
-                      options={itemsForSupplier.map((i) => ({ value: i._id, label: `${i.itemName}${i.hsnCode ? ` (${i.hsnCode})` : ""}` }))}
+                      options={itemDropdownOptions.map((i) => ({ value: i._id, label: itemLabel(i) }))}
                       value={selectedItemId}
                       onChange={setSelectedItemId}
                       className={selectClass}
                       placeholder={!supplierId ? "Select Supplier first" : itemsForSupplier.length === 0 ? "No items for this supplier" : "Select Item"}
                       disabled={!supplierId || itemsForSupplier.length === 0}
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <td className={rowLabel}>Godown <span className="text-red-500 font-bold">*</span></td>
+                  <td className="relative z-[54]">
+                    <Select
+                      options={godowns.map((g) => ({ value: g._id, label: godownLabel(g) }))}
+                      value={godownId}
+                      onChange={setGodownId}
+                      className={selectClass}
+                      placeholder="Select Godown"
                     />
                   </td>
                 </tr>
@@ -883,12 +951,12 @@ export default function EditPurchasePage() {
                   </td>
                 </tr>
                 <tr>
-                  <td className={rowLabel}>Pending Amount</td>
+                  <td className={rowLabel}>{pendingAmountValue < 0 ? "Advance (Overpaid)" : "Pending Amount"}</td>
                   <td>
                     <Input
                       readOnly
-                      value={(totals.netAmount - (parseFloat(paidAmount) || 0)).toFixed(2)}
-                      className={`${inputClass} text-right bg-gray-50 font-bold text-red-600 w-48`}
+                      value={Math.abs(pendingAmountValue).toFixed(2)}
+                      className={`${inputClass} text-right bg-gray-50 font-bold w-48 ${pendingAmountValue < 0 ? "text-green-600" : "text-red-600"}`}
                     />
                   </td>
                 </tr>

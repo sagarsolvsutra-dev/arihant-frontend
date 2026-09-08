@@ -20,6 +20,7 @@ import {
   Menu,
   X,
   RotateCcw,
+  ArrowLeftRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
@@ -30,7 +31,7 @@ interface AdminLayoutProps {
 }
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
-  const { activeCompany } = useCompany();
+  const { activeCompany, companies, selectedCompanyId, setSelectedCompanyId, canSwitchCompany } = useCompany();
   const pathname = usePathname();
   const router = useRouter();
   const [notificationsCount] = useState(3);
@@ -64,12 +65,16 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     }
   }, [showUserMenu]);
 
-  // Automatically switch sidebar view to "masters" if the pathname matches a master page
+  // Keep sidebar view in sync with the current route: switch TO "masters" when the
+  // pathname matches a master page, and back to "main" otherwise — the "otherwise"
+  // half was previously missing, so navigating from a master page to a non-master
+  // one (e.g. a Supplier's purchase-history drill-down link to /purchase/edit/:id,
+  // or browser Back/Forward) left the sidebar stuck showing the Masters submenu
+  // with no Dashboard/Purchase/Sell links visible.
   useEffect(() => {
     const masterPaths = ["/hsn", "/items", "/item-names", "/item-sub-groups", "/customers", "/customer-groups", "/suppliers", "/supplier-groups", "/godowns", "/godown-groups", "/salesmen", "/schemes", "/opening-bills/sale", "/opening-bills/purchase"];
-    if (masterPaths.some(path => pathname === path || pathname?.startsWith(path))) {
-      setSidebarView("masters");
-    }
+    const isMasterPath = masterPaths.some(path => pathname === path || pathname?.startsWith(path));
+    setSidebarView(isMasterPath ? "masters" : "main");
   }, [pathname]);
 
   // Read user from localStorage immediately (no useEffect delay)
@@ -207,6 +212,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           icon: <RotateCcw className="h-5 w-5" />,
           href: "/sale-return",
         },
+        {
+          id: "ca-stock-transfer",
+          label: "Stock Transfer",
+          englishLabel: "Stock Transfer",
+          icon: <ArrowLeftRight className="h-5 w-5" />,
+          href: "/stock-transfer",
+        },
         baseMenu[1],
       ];
     }
@@ -285,10 +297,30 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 <div className="h-10 w-10 bg-black text-white font-bold rounded-full flex items-center justify-center text-lg">
                   AE
                 </div>
-                <div className="flex flex-col">
-                  <span className="font-bold text-sm tracking-tight text-gray-900 leading-tight">
-                    {activeCompany ? activeCompany.name : "Arihant ERP"}
-                  </span>
+                <div className="flex flex-col min-w-0 flex-1">
+                  {canSwitchCompany && companies.length > 1 ? (
+                    // Only a super_admin (canSwitchCompany) ever gets more than one
+                    // company to choose from — company_admin/staff are always locked
+                    // to their own. Previously nothing in the app ever called
+                    // setSelectedCompanyId, so a super_admin had no way to pick which
+                    // company's data they were viewing/editing at all.
+                    <select
+                      value={selectedCompanyId}
+                      onChange={(e) => setSelectedCompanyId(e.target.value)}
+                      className="font-bold text-xs tracking-tight text-gray-900 leading-tight bg-transparent border-none outline-none cursor-pointer max-w-full truncate -ml-0.5"
+                      title="Switch company"
+                    >
+                      {companies.map((c) => (
+                        <option key={c._id} value={c._id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="font-bold text-sm tracking-tight text-gray-900 leading-tight truncate">
+                      {activeCompany ? activeCompany.name : "Arihant ERP"}
+                    </span>
+                  )}
                   <span className="text-[10px] text-gray-400 font-medium tracking-wider">
                     {isSuperAdmin ? "System Admin" : "Enterprise Hub"}
                   </span>

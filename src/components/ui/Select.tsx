@@ -233,15 +233,13 @@ export const Select: React.FC<SelectProps> = ({
         `}
       >
         <span
-          className={`truncate ${
-            selectedOption
-              ? "text-gray-900 font-medium"
-              : finalValue
-              ? "text-gray-700"
-              : "text-gray-400"
-          }`}
+          className={`truncate ${selectedOption ? "text-gray-900 font-medium" : "text-gray-400"}`}
         >
-          {selectedOption ? selectedOption.label : finalValue ? finalValue : placeholder}
+          {/* A truthy `finalValue` with no matching option (the record it refers to
+              was deleted, or filtered out of the options list, e.g. deactivated) used
+              to render the raw underlying value here — often a Mongo ObjectId — verbatim.
+              Falling back to the placeholder avoids ever surfacing that. */}
+          {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown
           className={`h-4 w-4 text-gray-400 transition-transform shrink-0 ${

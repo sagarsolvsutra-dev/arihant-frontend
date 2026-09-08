@@ -20,6 +20,7 @@ import { toast } from "sonner";
 interface GodownStockBucket {
   godownId: string;
   openingStockFreshPcs?: number;
+  openingStockExpiredPcs?: number;
   openingStockDamagedPcs?: number;
 }
 
@@ -42,6 +43,9 @@ interface ItemRow {
   freshPcs: number;
   freshCase: number;
   freshTotalPcs: number;
+  expiredPcs: number;
+  expiredCase: number;
+  expiredTotalPcs: number;
   damagedPcs: number;
   damagedCase: number;
   damagedTotalPcs: number;
@@ -49,6 +53,7 @@ interface ItemRow {
 
 interface PurchaseLine {
   itemName: string;
+  godownId?: string;
   caseQty?: number;
   pcsQty?: number;
   beforeGstRate?: number;
@@ -59,7 +64,6 @@ interface PurchaseRecord {
   _id: string;
   invoiceNo: string;
   invoiceDate: string;
-  godownId?: string;
   items?: PurchaseLine[];
 }
 
@@ -76,6 +80,7 @@ interface PurchaseRow {
 
 interface SaleLine {
   itemName: string;
+  godownId?: string;
   caseQty?: number;
   pcsQty?: number;
   afterGstRate?: number;
@@ -87,7 +92,6 @@ interface SaleRecord {
   invoiceNo: string;
   invoiceDate: string;
   customerId?: { _id: string; name: string } | string;
-  godownId?: string;
   items?: SaleLine[];
 }
 
@@ -105,13 +109,14 @@ interface SaleRow {
 
 interface ReturnLine {
   itemName: string;
+  godownId?: string;
   caseQty?: number;
   pcsQty?: number;
   totalPieces?: number;
   beforeGstRate?: number;
   afterGstRate?: number;
   netValue?: number;
-  condition?: "Fresh" | "Damaged";
+  condition?: "Fresh" | "Expired" | "Damaged";
 }
 
 interface PurchaseReturnRecord {
@@ -119,7 +124,6 @@ interface PurchaseReturnRecord {
   returnNo: string;
   returnDate: string;
   supplierId?: { _id: string; name: string } | string;
-  godownId?: string;
   items?: ReturnLine[];
 }
 
@@ -128,7 +132,6 @@ interface SaleReturnRecord {
   returnNo: string;
   returnDate: string;
   customerId?: { _id: string; name: string } | string;
-  godownId?: string;
   items?: ReturnLine[];
 }
 
@@ -143,7 +146,15 @@ interface ReturnRow {
   totalPieces: number;
   rate: number;
   netValue: number;
-  condition: "Fresh" | "Damaged";
+  condition: "Fresh" | "Expired" | "Damaged";
+}
+
+// Fresh = green (sellable), Expired = amber, Damaged = red — 3 genuinely
+// separate, independently-tracked stock buckets, not one bucket with two labels.
+function conditionPillClass(condition: string) {
+  if (condition === "Expired") return "bg-amber-100 text-amber-700";
+  if (condition === "Damaged") return "bg-red-100 text-red-700";
+  return "bg-green-100 text-green-700";
 }
 
 export default function GodownStockPage() {
@@ -178,12 +189,13 @@ export default function GodownStockPage() {
         const godown = godownList.find((g: any) => g._id === godownId);
         setGodownName(godown?.name || "(unknown godown)");
 
-        // Every Purchase line whose header godownId matches this godown.
+        // Every Purchase line whose own (per-line) godownId matches this godown —
+        // a single Purchase can span several godowns across its lines.
         const purchaseList: PurchaseRecord[] = purchaseRes.data || purchaseRes || [];
         const builtPurchaseRows: PurchaseRow[] = [];
         purchaseList.forEach((p) => {
-          if (String(p.godownId) !== String(godownId)) return;
           (p.items || []).forEach((line) => {
+            if (String(line.godownId) !== String(godownId)) return;
             builtPurchaseRows.push({
               purchaseId: p._id,
               invoiceNo: p.invoiceNo,
@@ -199,13 +211,13 @@ export default function GodownStockPage() {
         builtPurchaseRows.sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime());
         setPurchaseRows(builtPurchaseRows);
 
-        // Every Purchase Return line whose header godownId matches this godown.
+        // Every Purchase Return line whose own (per-line) godownId matches this godown.
         const purchaseReturnList: PurchaseReturnRecord[] = purchaseReturnRes.data || purchaseReturnRes || [];
         const builtPurchaseReturnRows: ReturnRow[] = [];
         purchaseReturnList.forEach((pr) => {
-          if (String(pr.godownId) !== String(godownId)) return;
           const supplierName = typeof pr.supplierId === "object" ? pr.supplierId?.name : "";
           (pr.items || []).forEach((line) => {
+            if (String(line.godownId) !== String(godownId)) return;
             builtPurchaseReturnRows.push({
               returnId: pr._id,
               returnNo: pr.returnNo,
@@ -217,20 +229,20 @@ export default function GodownStockPage() {
               totalPieces: line.totalPieces || 0,
               rate: line.beforeGstRate || 0,
               netValue: line.netValue || 0,
-              condition: line.condition === "Damaged" ? "Damaged" : "Fresh",
+              condition: ["Fresh", "Expired", "Damaged"].includes(line.condition as string) ? (line.condition as "Fresh" | "Expired" | "Damaged") : "Fresh",
             });
           });
         });
         builtPurchaseReturnRows.sort((a, b) => new Date(b.returnDate).getTime() - new Date(a.returnDate).getTime());
         setPurchaseReturnRows(builtPurchaseReturnRows);
 
-        // Every Sale Return line whose header godownId matches this godown.
+        // Every Sale Return line whose own (per-line) godownId matches this godown.
         const saleReturnList: SaleReturnRecord[] = saleReturnRes.data || saleReturnRes || [];
         const builtSaleReturnRows: ReturnRow[] = [];
         saleReturnList.forEach((sr) => {
-          if (String(sr.godownId) !== String(godownId)) return;
           const customerName = typeof sr.customerId === "object" ? sr.customerId?.name : "";
           (sr.items || []).forEach((line) => {
+            if (String(line.godownId) !== String(godownId)) return;
             builtSaleReturnRows.push({
               returnId: sr._id,
               returnNo: sr.returnNo,
@@ -242,21 +254,21 @@ export default function GodownStockPage() {
               totalPieces: line.totalPieces || 0,
               rate: line.afterGstRate || 0,
               netValue: line.netValue || 0,
-              condition: line.condition === "Damaged" ? "Damaged" : "Fresh",
+              condition: ["Fresh", "Expired", "Damaged"].includes(line.condition as string) ? (line.condition as "Fresh" | "Expired" | "Damaged") : "Fresh",
             });
           });
         });
         builtSaleReturnRows.sort((a, b) => new Date(b.returnDate).getTime() - new Date(a.returnDate).getTime());
         setSaleReturnRows(builtSaleReturnRows);
 
-        // Every Sale line that moved through this godown — Sale.godownId is a real,
-        // header-level field so this is a direct filter, no per-line lookup needed.
+        // Every Sale line whose own (per-line) godownId matches this godown — a
+        // single Sale can span several godowns across its lines.
         const saleList: SaleRecord[] = saleRes.data || saleRes || [];
         const builtSaleRows: SaleRow[] = [];
         saleList.forEach((s) => {
-          if (String(s.godownId) !== String(godownId)) return;
           const customerName = typeof s.customerId === "object" ? s.customerId?.name : "";
           (s.items || []).forEach((line) => {
+            if (String(line.godownId) !== String(godownId)) return;
             builtSaleRows.push({
               saleId: s._id,
               invoiceNo: s.invoiceNo,
@@ -278,16 +290,19 @@ export default function GodownStockPage() {
         itemList.forEach((item) => {
           const packing = parseFloat(String(item.packing)) || 1;
           let freshPcs = 0;
+          let expiredPcs = 0;
           let damagedPcs = 0;
           (item.mrpEntries || []).forEach((entry) => {
             const bucket = (entry.godownStock || []).find((g) => String(g.godownId) === String(godownId));
             if (bucket) {
               freshPcs += parseFloat(String(bucket.openingStockFreshPcs)) || 0;
+              expiredPcs += parseFloat(String(bucket.openingStockExpiredPcs)) || 0;
               damagedPcs += parseFloat(String(bucket.openingStockDamagedPcs)) || 0;
             }
           });
-          if (freshPcs !== 0 || damagedPcs !== 0) {
+          if (freshPcs !== 0 || expiredPcs !== 0 || damagedPcs !== 0) {
             const fresh = splitCasePcs(freshPcs, packing);
+            const expired = splitCasePcs(expiredPcs, packing);
             const damaged = splitCasePcs(damagedPcs, packing);
             builtRows.push({
               itemId: item._id,
@@ -296,6 +311,9 @@ export default function GodownStockPage() {
               freshCase: fresh.case,
               freshPcs: fresh.pcs,
               freshTotalPcs: freshPcs,
+              expiredCase: expired.case,
+              expiredPcs: expired.pcs,
+              expiredTotalPcs: expiredPcs,
               damagedCase: damaged.case,
               damagedPcs: damaged.pcs,
               damagedTotalPcs: damagedPcs,
@@ -336,19 +354,26 @@ export default function GodownStockPage() {
   }
 
   const totalFreshPcs = filteredRows.reduce((s, r) => s + r.freshTotalPcs, 0);
-  // "Expired" combines two things that would otherwise show as separate, confusing
-  // tiles: stock still physically sitting in this godown marked Expired (from a Sale
-  // Return with condition=Damaged — still a real, present quantity) and stock already
-  // sent back to a supplier as Expired via Purchase Return (condition doesn't move
-  // stock into a bucket there — see purchaseReturnController.applyStockDelta — so
-  // that quantity only exists as a sum over return lines, never as a stock figure).
-  // Shown as one merged number since to the user both are just "how much has been
-  // Expired," regardless of whether it's still on-site or already gone back out.
-  const totalDamagedPcs = filteredRows.reduce((s, r) => s + r.damagedTotalPcs, 0);
+  // Each figure combines two things that would otherwise show as separate, confusing
+  // tiles: stock still physically sitting in this godown marked Expired/Damaged (from
+  // a Sale Return with that condition — still a real, present quantity) and stock
+  // already sent back to a supplier as Expired/Damaged via Purchase Return (condition
+  // doesn't move stock into a bucket there — see purchaseReturnController.applyStockDelta
+  // — so that quantity only exists as a sum over return lines, never as a stock figure).
+  // Shown as one merged number per condition since to the user both are just "how much
+  // has been Expired/Damaged," regardless of whether it's still on-site or already gone
+  // back out. Expired and Damaged are now genuinely separate buckets/figures — not the
+  // same underlying data with two labels.
+  const totalExpiredStockPcs = filteredRows.reduce((s, r) => s + r.expiredTotalPcs, 0);
   const totalExpiredReturnedPcs = purchaseReturnRows
+    .filter((r) => r.condition === "Expired")
+    .reduce((s, r) => s + r.totalPieces, 0);
+  const totalExpiredPcs = totalExpiredStockPcs + totalExpiredReturnedPcs;
+  const totalDamagedStockPcs = filteredRows.reduce((s, r) => s + r.damagedTotalPcs, 0);
+  const totalDamagedReturnedPcs = purchaseReturnRows
     .filter((r) => r.condition === "Damaged")
     .reduce((s, r) => s + r.totalPieces, 0);
-  const totalExpiredPcs = totalDamagedPcs + totalExpiredReturnedPcs;
+  const totalDamagedPcs = totalDamagedStockPcs + totalDamagedReturnedPcs;
   const totalPurchasedNetValue = purchaseRows.reduce((s, r) => s + r.netValue, 0);
   const totalSoldNetValue = saleRows.reduce((s, r) => s + r.netValue, 0);
   const totalPurchaseReturnedNetValue = purchaseReturnRows.reduce((s, r) => s + r.netValue, 0);
@@ -375,7 +400,7 @@ export default function GodownStockPage() {
         <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search items in this godown..." />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="card p-4 flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
             <Package size={20} className="text-green-600" />
@@ -394,6 +419,15 @@ export default function GodownStockPage() {
             <div className="text-xl font-bold text-amber-700">{totalExpiredPcs.toFixed(1)}</div>
           </div>
         </div>
+        <div className="card p-4 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
+            <AlertTriangle size={20} className="text-red-600" />
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">Total Damaged Pcs</div>
+            <div className="text-xl font-bold text-red-700">{totalDamagedPcs.toFixed(1)}</div>
+          </div>
+        </div>
       </div>
 
       <div className="card">
@@ -404,8 +438,10 @@ export default function GodownStockPage() {
             { key: "code", header: "Code", accessor: (r: ItemRow) => r.codeBarCode || "-" },
             { key: "freshCase", header: "Fresh Case", align: "right" as const, accessor: (r: ItemRow) => r.freshCase },
             { key: "freshPcs", header: "Fresh Pcs", align: "right" as const, accessor: (r: ItemRow) => r.freshPcs },
-            { key: "damagedCase", header: "Expired Case", align: "right" as const, accessor: (r: ItemRow) => r.damagedCase },
-            { key: "damagedPcs", header: "Expired Pcs", align: "right" as const, accessor: (r: ItemRow) => r.damagedPcs },
+            { key: "expiredCase", header: "Expired Case", align: "right" as const, accessor: (r: ItemRow) => r.expiredCase },
+            { key: "expiredPcs", header: "Expired Pcs", align: "right" as const, accessor: (r: ItemRow) => r.expiredPcs },
+            { key: "damagedCase", header: "Damaged Case", align: "right" as const, accessor: (r: ItemRow) => r.damagedCase },
+            { key: "damagedPcs", header: "Damaged Pcs", align: "right" as const, accessor: (r: ItemRow) => r.damagedPcs },
           ]}
           data={filteredRows}
           emptyMessage={
@@ -519,8 +555,8 @@ export default function GodownStockPage() {
                       key: "condition",
                       header: "Condition",
                       accessor: (r: ReturnRow) => (
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${r.condition === "Damaged" ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"}`}>
-                          {r.condition === "Damaged" ? "Expired" : "Fresh"}
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${conditionPillClass(r.condition)}`}>
+                          {r.condition}
                         </span>
                       ),
                     },
@@ -563,8 +599,8 @@ export default function GodownStockPage() {
                       key: "condition",
                       header: "Condition",
                       accessor: (r: ReturnRow) => (
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${r.condition === "Damaged" ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"}`}>
-                          {r.condition === "Damaged" ? "Expired" : "Fresh"}
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${conditionPillClass(r.condition)}`}>
+                          {r.condition}
                         </span>
                       ),
                     },

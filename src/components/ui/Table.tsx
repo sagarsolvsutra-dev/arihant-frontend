@@ -54,7 +54,10 @@ function getCellValue<T>(row: T, column: Column<T>, rowIndex: number): React.Rea
 }
 
 function getRowKey<T>(row: T, rowIndex: number): React.Key {
-  return (row as any).id ?? (row as any)._id ?? `row-${rowIndex}`;
+  // Transactional pages' own `Line` type carries a stable `.key` field precisely so
+  // each grid row keeps its identity across inline-edits/removals — check it before
+  // falling back to array index, which would otherwise silently defeat that.
+  return (row as any).key ?? (row as any).id ?? (row as any)._id ?? `row-${rowIndex}`;
 }
 
 export function Table<T = any>({
@@ -191,7 +194,10 @@ function MobileCard<T>({
 }) {
   const [expanded, setExpanded] = useState(false);
 
-  const isActionsColumn = (col: Column<T>) => /action|ક્રિયા/i.test(col.header) || col.key === "actions";
+  // Word-bounded match — a bare substring test would also match e.g. a future
+  // "Transaction No" header (which literally contains "action"), misclassifying it
+  // as the actions slot and silently breaking that page's mobile card layout.
+  const isActionsColumn = (col: Column<T>) => /(^|\s)actions?(\s|$)/i.test(col.header) || /ક્રિયા/.test(col.header) || col.key === "actions";
   const actionsColumn = columns.find(isActionsColumn);
   const actionsColIndex = columns.findIndex(isActionsColumn);
   
@@ -384,11 +390,16 @@ function MobilePaginationBar({
       </div>
       <div className="flex items-center justify-end gap-2 text-xs text-gray-500 font-medium mt-1">
         પાનું (Page)
-        <input 
-          type="number" 
-          min={1} 
-          max={pagination.totalPages} 
-          defaultValue={pagination.currentPage} 
+        <input
+          // Remounts the input whenever the actual current page changes (via Prev/
+          // Next/a numbered button), so its uncontrolled `defaultValue` re-applies —
+          // without this it only ever reflected whatever page was current when this
+          // component instance first mounted.
+          key={pagination.currentPage}
+          type="number"
+          min={1}
+          max={pagination.totalPages}
+          defaultValue={pagination.currentPage}
           className="w-12 h-7 px-1.5 text-center border border-gray-200 rounded bg-white text-gray-800"
           onKeyDown={(e) => {
             if (e.key === 'Enter') {

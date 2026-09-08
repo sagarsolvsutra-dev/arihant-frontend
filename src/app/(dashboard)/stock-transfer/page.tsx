@@ -8,39 +8,37 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { Table } from "@/components/ui/Table";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
-import { saleReturnService } from "@/services/saleReturnService";
+import { stockTransferService } from "@/services/stockTransferService";
 import { godownService } from "@/services/godownService";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-interface SaleReturnRecord {
+interface StockTransferRecord {
   _id: string;
-  returnNo: string;
-  returnDate: string;
-  customerId?: { _id: string; name: string } | string;
-  originalInvoiceNo?: string;
-  items?: { itemName: string; godownId?: string }[];
+  transferNo: string;
+  transferDate: string;
+  fromGodownId?: { _id: string; name: string } | string;
+  toGodownId?: { _id: string; name: string } | string;
+  items?: { itemName: string }[];
   totalItems?: number;
   totalCase?: number;
   totalPcs?: number;
   totalQty?: number;
-  netAmount?: number;
-  pendingAmount?: number;
 }
 
-export default function SaleReturnListPage() {
+export default function StockTransferListPage() {
   const { activeCompany } = useCompany();
   const companyId = activeCompany?._id;
   const router = useRouter();
 
-  const [records, setRecords] = useState<SaleReturnRecord[]>([]);
+  const [records, setRecords] = useState<StockTransferRecord[]>([]);
   const [godowns, setGodowns] = useState<{ _id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [deletingRecord, setDeletingRecord] = useState<SaleReturnRecord | null>(null);
+  const [deletingRecord, setDeletingRecord] = useState<StockTransferRecord | null>(null);
 
   useEffect(() => {
     if (!companyId) return;
@@ -61,7 +59,7 @@ export default function SaleReturnListPage() {
     if (!companyId) return;
     setLoading(true);
     try {
-      const data = await saleReturnService.getSaleReturns(companyId, page, 10, searchQuery);
+      const data = await stockTransferService.getStockTransfers(companyId, page, 10, searchQuery);
       setRecords(data.data || []);
       setTotalPages(data.pagination?.totalPages || 1);
     } catch (err: any) {
@@ -75,7 +73,7 @@ export default function SaleReturnListPage() {
   const confirmDelete = async () => {
     if (!deletingRecord?._id) return;
     try {
-      await saleReturnService.deleteSaleReturn(deletingRecord._id);
+      await stockTransferService.deleteStockTransfer(deletingRecord._id);
       loadRecords();
       toast.success("Deleted successfully");
     } catch (err: any) {
@@ -92,60 +90,40 @@ export default function SaleReturnListPage() {
     setPage(1);
   };
 
+  const godownName = (v: any) => {
+    if (!v) return "-";
+    if (typeof v === "object") return v.name || "-";
+    return godowns.find((g) => g._id === v)?.name || "-";
+  };
+
   const columns = [
-    { key: "returnNo", header: "Return No", accessor: (r: SaleReturnRecord) => r.returnNo, primary: true },
+    { key: "transferNo", header: "Transfer No", accessor: (r: StockTransferRecord) => r.transferNo, primary: true },
     {
-      key: "returnDate",
+      key: "transferDate",
       header: "Date",
-      accessor: (r: SaleReturnRecord) => (r.returnDate ? new Date(r.returnDate).toLocaleDateString("en-IN") : "-"),
+      accessor: (r: StockTransferRecord) => (r.transferDate ? new Date(r.transferDate).toLocaleDateString("en-IN") : "-"),
     },
-    {
-      key: "customer",
-      header: "Customer",
-      accessor: (r: SaleReturnRecord) => (typeof r.customerId === "object" ? r.customerId?.name : "") || "-",
-    },
-    { key: "originalInvoiceNo", header: "Orig. Invoice", accessor: (r: SaleReturnRecord) => r.originalInvoiceNo || "-" },
+    { key: "fromGodown", header: "From Godown", accessor: (r: StockTransferRecord) => godownName(r.fromGodownId) },
+    { key: "toGodown", header: "To Godown", accessor: (r: StockTransferRecord) => godownName(r.toGodownId) },
     {
       key: "itemName",
       header: "Item Name",
-      accessor: (r: SaleReturnRecord) => {
+      accessor: (r: StockTransferRecord) => {
         const names = r.items?.map((i) => i.itemName) || [];
         if (names.length === 0) return "-";
         return names.length === 1 ? names[0] : `${names[0]} +${names.length - 1} more`;
       },
     },
-    {
-      key: "godown",
-      header: "Godown",
-      // Godown is per-line now, not per-invoice — a single return can span several
-      // godowns across its lines, so show the distinct set (same "first + N more"
-      // pattern the Item Name column above already uses).
-      accessor: (r: SaleReturnRecord) => {
-        const names = Array.from(new Set((r.items || []).map((l) => l.godownId).filter(Boolean)))
-          .map((id) => godowns.find((g) => g._id === id)?.name)
-          .filter(Boolean) as string[];
-        if (names.length === 0) return "-";
-        return names.length === 1 ? names[0] : `${names[0]} +${names.length - 1} more`;
-      },
-    },
-    { key: "totalCase", header: "Case", accessor: (r: SaleReturnRecord) => r.totalCase ?? 0 },
-    { key: "totalPcsLoose", header: "Loose", accessor: (r: SaleReturnRecord) => r.totalPcs ?? 0 },
-    {
-      key: "netAmount",
-      header: "Net Amount",
-      accessor: (r: SaleReturnRecord) => `₹${(r.netAmount ?? 0).toFixed(2)}`,
-    },
-    {
-      key: "pendingAmount",
-      header: "Pending",
-      accessor: (r: SaleReturnRecord) => `₹${(r.pendingAmount ?? 0).toFixed(2)}`,
-    },
+    { key: "totalItems", header: "Items", accessor: (r: StockTransferRecord) => r.totalItems ?? 0 },
+    { key: "totalCase", header: "Case", accessor: (r: StockTransferRecord) => r.totalCase ?? 0 },
+    { key: "totalPcsLoose", header: "Loose", accessor: (r: StockTransferRecord) => r.totalPcs ?? 0 },
+    { key: "totalQty", header: "Total Qty", accessor: (r: StockTransferRecord) => (r.totalQty ?? 0).toFixed(0) },
     {
       key: "actions",
       header: "Actions",
-      accessor: (r: SaleReturnRecord) => (
+      accessor: (r: StockTransferRecord) => (
         <div className="flex gap-2">
-          <EditButton onClick={() => router.push(`/sale-return/edit/${r._id}`)} />
+          <EditButton onClick={() => router.push(`/stock-transfer/edit/${r._id}`)} />
           <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
         </div>
       ),
@@ -164,11 +142,11 @@ export default function SaleReturnListPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Sale Return</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage sale return invoices</p>
+          <h1 className="text-xl font-bold text-gray-900">Stock Transfer</h1>
+          <p className="text-sm text-gray-500 mt-1">Move stock directly from one godown to another</p>
         </div>
-        <Button onClick={() => router.push("/sale-return/add")} leftIcon={<Plus size={16} />} className="btn-primary">
-          Add Sale Return
+        <Button onClick={() => router.push("/stock-transfer/add")} leftIcon={<Plus size={16} />} className="btn-primary">
+          Add Stock Transfer
         </Button>
       </div>
 
@@ -176,7 +154,7 @@ export default function SaleReturnListPage() {
         <SearchInput
           value={searchQuery}
           onChange={handleSearchChange}
-          placeholder="Search by return no..."
+          placeholder="Search by transfer no..."
         />
       </div>
 
@@ -185,7 +163,7 @@ export default function SaleReturnListPage() {
           columns={columns}
           data={records}
           isLoading={loading}
-          emptyMessage="No sale returns found"
+          emptyMessage="No stock transfers found"
           pagination={{
             currentPage: page,
             totalPages,
@@ -201,8 +179,8 @@ export default function SaleReturnListPage() {
           setDeletingRecord(null);
         }}
         onConfirm={confirmDelete}
-        title="Delete Sale Return"
-        message={`Delete return "${deletingRecord?.returnNo}"? This will reverse its stock effect. This action cannot be undone.`}
+        title="Delete Stock Transfer"
+        message={`Delete transfer "${deletingRecord?.transferNo}"? This will reverse its stock effect (moving quantity back from To Godown to From Godown). This action cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"

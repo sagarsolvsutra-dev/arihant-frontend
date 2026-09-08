@@ -114,14 +114,14 @@ export default function ItemsPage() {
   };
 
   const columns = [
-    { key: "name", header: "Name", accessor: (r: ItemRecord) => r.itemName, primary: true },
-    { key: "code", header: "Code", accessor: (r: ItemRecord) => r.codeBarCode || "-" },
-    { key: "hsn", header: "HSN", accessor: (r: ItemRecord) => r.hsnCode || "-" },
     {
       key: "subGroup",
       header: "Sub Group",
       accessor: (r: ItemRecord) => (typeof r.itemSubGroupId === "object" ? r.itemSubGroupId?.name : "") || "-",
     },
+    { key: "name", header: "Name", accessor: (r: ItemRecord) => r.itemName, primary: true },
+    { key: "code", header: "Code", accessor: (r: ItemRecord) => r.codeBarCode || "-" },
+    { key: "hsn", header: "HSN", accessor: (r: ItemRecord) => r.hsnCode || "-" },
     { key: "uqc", header: "UQC", accessor: (r: ItemRecord) => r.uqcUnit || "-" },
     { key: "packing", header: "Packing", accessor: (r: ItemRecord) => r.packing || "1" },
     { key: "purchaseType", header: "Pur. Type", accessor: (r: ItemRecord) => r.purchaseType || "-" },

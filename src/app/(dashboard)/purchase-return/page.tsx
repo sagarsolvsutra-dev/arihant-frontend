@@ -18,9 +18,8 @@ interface PurchaseReturnRecord {
   returnNo: string;
   returnDate: string;
   supplierId?: { _id: string; name: string } | string;
-  godownId?: string;
   originalInvoiceNo?: string;
-  items?: { itemName: string }[];
+  items?: { itemName: string; godownId?: string }[];
   totalItems?: number;
   totalCase?: number;
   totalPcs?: number;
@@ -118,7 +117,16 @@ export default function PurchaseReturnListPage() {
     {
       key: "godown",
       header: "Godown",
-      accessor: (r: PurchaseReturnRecord) => godowns.find((g) => g._id === r.godownId)?.name || "-",
+      // Godown is per-line now, not per-invoice — a single return can span several
+      // godowns across its lines, so show the distinct set (same "first + N more"
+      // pattern the Item Name column above already uses).
+      accessor: (r: PurchaseReturnRecord) => {
+        const names = Array.from(new Set((r.items || []).map((l) => l.godownId).filter(Boolean)))
+          .map((id) => godowns.find((g) => g._id === id)?.name)
+          .filter(Boolean) as string[];
+        if (names.length === 0) return "-";
+        return names.length === 1 ? names[0] : `${names[0]} +${names.length - 1} more`;
+      },
     },
     { key: "totalCase", header: "Case", accessor: (r: PurchaseReturnRecord) => r.totalCase ?? 0 },
     { key: "totalPcsLoose", header: "Loose", accessor: (r: PurchaseReturnRecord) => r.totalPcs ?? 0 },

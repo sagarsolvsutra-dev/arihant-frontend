@@ -112,7 +112,7 @@ export const api = {
 
   // Inventory
   getStock: () => request(API_ENDPOINTS.STOCK, {}, false),
-  getStockTransfer: () => request(API_ENDPOINTS.STOCK_TRANSFER, {}, false),
+  getStockTransfer: () => request(API_ENDPOINTS.STOCK_TRANSFERS, {}, false),
   getStockAdjustment: () => request(API_ENDPOINTS.STOCK_ADJUSTMENT, {}, false),
   getStockLedger: () => request(API_ENDPOINTS.STOCK_LEDGER, {}, false),
 

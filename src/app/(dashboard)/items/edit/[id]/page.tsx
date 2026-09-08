@@ -452,10 +452,15 @@ export default function EditItemPage() {
     if (!name.trim()) newErrors.name = "Item Name is required";
     if (!hsnCode) newErrors.hsnCode = "HSN Code is required";
     if (!hsnPrint.trim()) newErrors.hsnPrint = "HSN (Print) is required";
+    if (!codeBarCode.trim()) newErrors.codeBarCode = "Code/BarCode is required";
     if (!packing || parseFloat(packing) < 1) newErrors.packing = "Packing is required";
-    if (!purchaseRate) newErrors.purchaseRate = "Purchase Rate is required";
-    if (!salesRateRetailer) newErrors.salesRateRetailer = "Sale Rate is required";
-    if (!mrp) newErrors.mrp = "M.R.P. is required";
+    // `!purchaseRate` etc. never caught a literal "0" — a non-empty string is
+    // truthy in JS, so leaving these at their default "0" silently passed
+    // validation despite the required red asterisk, creating an item with zero
+    // pricing. Compare the parsed numeric value instead, matching the Packing check.
+    if (!purchaseRate || parseFloat(purchaseRate) <= 0) newErrors.purchaseRate = "Purchase Rate is required";
+    if (!salesRateRetailer || parseFloat(salesRateRetailer) <= 0) newErrors.salesRateRetailer = "Sale Rate is required";
+    if (!mrp || parseFloat(mrp) <= 0) newErrors.mrp = "M.R.P. is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -668,7 +673,10 @@ export default function EditItemPage() {
                       onChange={(val) => {
                         setHsnCode(val);
                         const selectedHsn = hsnCodesList.find(h => h.hsnCode === val);
-                        if (selectedHsn) setHsnPrint(selectedHsn.hsnCode);
+                        if (selectedHsn) {
+                          setHsnPrint(selectedHsn.hsnCode);
+                          if (selectedHsn.uqcUnit) setUqcUnit(selectedHsn.uqcUnit);
+                        }
                       }}
                       error={errors.hsnCode}
                       className={selectClass}
@@ -692,8 +700,11 @@ export default function EditItemPage() {
               </tr>
               <tr>
                 <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Code/BarCode</td>
-                <td className="pr-4">
-                  <Input value={codeBarCode} onChange={e => setCodeBarCode(e.target.value)} className={inputClass} />
+                <td className="flex items-start gap-2 pr-4">
+                  <div className="w-full">
+                    <Input value={codeBarCode} onChange={e => setCodeBarCode(e.target.value)} error={errors.codeBarCode} className={inputClass} />
+                  </div>
+                  <span className="text-red-500 font-bold mt-1.5">*</span>
                 </td>
               </tr>
               <tr>

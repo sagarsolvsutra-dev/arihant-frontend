@@ -46,6 +46,7 @@ interface ItemRecord {
   itemName: string;
   hsnCode?: string;
   codeBarCode?: string;
+  itemSubGroupId?: { _id: string; name: string } | string;
   mrp?: number;
   salesRate?: number;
   retailRate?: number;
@@ -82,6 +83,7 @@ interface Line {
   pcsQty: number;
   freeQty: number;
   totalPieces: number;
+  godownId: string;
   afterGstRate: number;
   lessPercent: number;
   lessRs: number;
@@ -131,6 +133,24 @@ function toDateInputValue(d: any) {
   return date.toISOString().slice(0, 10);
 }
 
+// "Godown Name - Group Name" — auto-derived from the godown's own godownGroupId
+// (already populated by godownService.getGodowns), instead of relying on the group
+// being manually typed into the godown's name.
+function godownLabel(g: { name: string; godownGroupId?: { _id: string; name: string } | string | null }) {
+  const groupName = typeof g.godownGroupId === "object" && g.godownGroupId ? g.godownGroupId.name : "";
+  return groupName ? `${g.name} - ${groupName}` : g.name;
+}
+
+// Same item name can legitimately repeat across different Sub Groups — include the
+// Sub Group in the Item Name dropdown's own label so two "Namkeen"s are distinguishable
+// without having to already know which HSN code belongs to which.
+function itemLabel(i: { itemName: string; hsnCode?: string; codeBarCode?: string; itemSubGroupId?: { _id: string; name: string } | string }) {
+  const subGroupName = typeof i.itemSubGroupId === "object" && i.itemSubGroupId ? i.itemSubGroupId.name : "";
+  const namePart = subGroupName ? `${i.itemName} - ${subGroupName}` : i.itemName;
+  const withHsn = i.hsnCode ? `${namePart} (${i.hsnCode})` : namePart;
+  return i.codeBarCode ? `[${i.codeBarCode}] ${withHsn}` : withHsn;
+}
+
 export default function EditSalePage() {
   const router = useRouter();
   const params = useParams();
@@ -144,20 +164,24 @@ export default function EditSalePage() {
   // from firing two concurrent saves that could race on the same item's stock update.
   const savingRef = useRef(false);
   const [items, setItems] = useState<ItemRecord[]>([]);
+  // Unfiltered — see purchase/add/page.tsx for why this exists alongside `items`.
+  const [allItems, setAllItems] = useState<ItemRecord[]>([]);
   const [customers, setCustomers] = useState<CustomerRecord[]>([]);
-  const [godowns, setGodowns] = useState<{ _id: string; name: string }[]>([]);
+  const [godowns, setGodowns] = useState<{ _id: string; name: string; godownGroupId?: { _id: string; name: string } | string | null }[]>([]);
 
   const [invoiceType, setInvoiceType] = useState("Tax Invoice");
   const [paymentType, setPaymentType] = useState("Credit");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
-  const [godownId, setGodownId] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [notes, setNotes] = useState("");
   const [receivedAmount, setReceivedAmount] = useState("0");
   const [dueDate, setDueDate] = useState("");
 
+  // Per-line, not header-level — each added line carries its own godown, so a single
+  // Sale can move different items out of different godowns.
+  const [godownId, setGodownId] = useState("");
   const [selectedItemId, setSelectedItemId] = useState("");
   const [selectedRateIndex, setSelectedRateIndex] = useState<number | null>(null);
   const [mrp, setMrp] = useState("0");
@@ -179,6 +203,7 @@ export default function EditSalePage() {
     if (!companyId) return;
     itemService.getItems(companyId, 1, 1000).then((res: any) => {
       const list = res.data || res || [];
+      setAllItems(list);
       setItems(list.filter((i: ItemRecord) => i.isActive !== false));
     });
     customerService.getCustomers(companyId, 1, 1000).then((res: any) => {
@@ -201,7 +226,6 @@ export default function EditSalePage() {
         setInvoiceNo(s.invoiceNo || "");
         setInvoiceDate(toDateInputValue(s.invoiceDate));
         setDeliveryDate(toDateInputValue(s.deliveryDate));
-        setGodownId(typeof s.godownId === "string" ? s.godownId : s.godownId?._id || "");
         setCustomerId(typeof s.customerId === "string" ? s.customerId : s.customerId?._id || "");
         setNotes(s.notes || "");
         setReceivedAmount(String(s.receivedAmount ?? 0));
@@ -214,6 +238,7 @@ export default function EditSalePage() {
             packing: it.packing,
             salesQty: it.salesQty,
             mrp: it.mrp,
+            godownId: typeof it.godownId === "string" ? it.godownId : it.godownId?._id || "",
             caseQty: it.caseQty,
             pcsQty: it.pcsQty,
             freeQty: it.freeQty,
@@ -242,7 +267,16 @@ export default function EditSalePage() {
   const selectedCustomer = customers.find((c) => c._id === customerId) || null;
   const customerType = selectedCustomer?.customerType || "Retailer";
 
-  const selectedItem = items.find((i) => i._id === selectedItemId) || null;
+  // Item Name is unscoped (no supplier-style filter, see quirk #26), so the only way
+  // a currently-loaded item can be missing from `items` is deactivation — inject it
+  // back as an extra option so it stays visible/selectable instead of vanishing.
+  const selectedItemFallback =
+    selectedItemId && !items.some((i) => i._id === selectedItemId)
+      ? allItems.find((i) => i._id === selectedItemId)
+      : undefined;
+  const itemDropdownOptions = selectedItemFallback ? [...items, selectedItemFallback] : items;
+
+  const selectedItem = items.find((i) => i._id === selectedItemId) || allItems.find((i) => i._id === selectedItemId) || null;
 
   const activeRateEntries = (selectedItem?.mrpEntries || []).filter((e) => e.mrpActive !== false);
 
@@ -283,13 +317,17 @@ export default function EditSalePage() {
 
   const selectedRateEntry = selectedRateIndex !== null ? activeRateEntries[selectedRateIndex] : null;
 
-  const effectiveItem = selectedItem
-    ? {
-        ...selectedItem,
-        packing: selectedRateEntry?.packing ?? selectedItem.packing,
-        salesQty: selectedRateEntry?.salesQty ?? selectedItem.salesQty,
-      }
-    : null;
+  // See purchase/add/page.tsx — memoized so it only changes reference when
+  // selectedItem/selectedRateEntry actually do, instead of defeating the `preview`
+  // useMemo below by being a fresh object literal every render.
+  const effectiveItem = useMemo(() => {
+    if (!selectedItem) return null;
+    return {
+      ...selectedItem,
+      packing: selectedRateEntry?.packing ?? selectedItem.packing,
+      salesQty: selectedRateEntry?.salesQty ?? selectedItem.salesQty,
+    };
+  }, [selectedItem, selectedRateEntry]);
 
   const preview = useMemo(() => {
     if (!effectiveItem) return null;
@@ -333,6 +371,10 @@ export default function EditSalePage() {
     const rate = parseFloat(afterGstRate) || 0;
     const lessRsVal = parseFloat(lessRs) || 0;
     const cdRsVal = parseFloat(cdRs) || 0;
+    if (!godownId) {
+      toast.error("Select a Godown for this line");
+      return;
+    }
     if (c <= 0 && p <= 0) {
       toast.error("Enter Case or Pcs quantity");
       return;
@@ -346,6 +388,12 @@ export default function EditSalePage() {
       return;
     }
     if (!preview) return;
+    // See purchase/add/page.tsx — nothing previously capped combined discounts
+    // against the line's own amount.
+    if (preview.taxableValue < 0) {
+      toast.error("Discounts cannot exceed the line amount");
+      return;
+    }
 
     const line: Line = {
       key: `${selectedItem._id}-${Date.now()}`,
@@ -354,6 +402,7 @@ export default function EditSalePage() {
       packing: preview.packing,
       salesQty: preview.salesQty,
       mrp: parseFloat(mrp) || 0,
+      godownId,
       caseQty: c,
       pcsQty: p,
       freeQty: parseFloat(freeQty) || 0,
@@ -380,13 +429,14 @@ export default function EditSalePage() {
   };
 
   const handleEditLine = (line: Line) => {
-    const targetItem = items.find((i) => i._id === line.itemId);
+    const targetItem = items.find((i) => i._id === line.itemId) || allItems.find((i) => i._id === line.itemId);
     const targetActiveEntries = (targetItem?.mrpEntries || []).filter((e) => e.mrpActive !== false);
     const idx = targetActiveEntries.findIndex((e) => Math.abs((e.mrp ?? 0) - line.mrp) < 0.001);
 
     skipAutoFillRef.current = true;
     setSelectedItemId(line.itemId);
     setSelectedRateIndex(idx >= 0 ? idx : null);
+    setGodownId(line.godownId);
     setMrp(String(line.mrp));
     setCaseQty(String(line.caseQty));
     setPcsQty(String(line.pcsQty));
@@ -417,6 +467,10 @@ export default function EditSalePage() {
     );
   }, [lines]);
 
+  // See purchase/add/page.tsx — negative means a genuine advance/credit balance,
+  // not an error; left unclamped, shown as a clearly-labeled Advance instead.
+  const pendingAmountValue = totals.netAmount - (parseFloat(receivedAmount) || 0);
+
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!companyId) return;
@@ -424,10 +478,6 @@ export default function EditSalePage() {
 
     if (!invoiceNo.trim() || !invoiceDate) {
       toast.error("Please fill Invoice No and Invoice Date");
-      return;
-    }
-    if (!godownId) {
-      toast.error("Please select a Godown");
       return;
     }
     if (!customerId) {
@@ -448,7 +498,6 @@ export default function EditSalePage() {
         invoiceNo: invoiceNo.trim(),
         invoiceDate,
         deliveryDate: deliveryDate || null,
-        godownId,
         customerId,
         notes,
         receivedAmount: parseFloat(receivedAmount) || 0,
@@ -456,6 +505,7 @@ export default function EditSalePage() {
         items: lines.map((l) => ({
           itemId: l.itemId,
           mrp: l.mrp,
+          godownId: l.godownId,
           caseQty: l.caseQty,
           pcsQty: l.pcsQty,
           freeQty: l.freeQty,
@@ -513,6 +563,14 @@ export default function EditSalePage() {
   const gridColumns = [
     { key: "idx", header: "#", accessor: (_: Line, i: number) => i + 1 },
     { key: "item", header: "Item Name", accessor: (l: Line) => l.itemName },
+    {
+      key: "godown",
+      header: "Godown",
+      accessor: (l: Line) => {
+        const g = godowns.find((gd) => gd._id === l.godownId);
+        return g ? godownLabel(g) : "-";
+      },
+    },
     { key: "mrp", header: "MRP Rs", align: "right" as const, accessor: (l: Line) => l.mrp.toFixed(2) },
     { key: "case", header: "Case", align: "right" as const, accessor: (l: Line) => l.caseQty },
     { key: "pcs", header: "Pcs", align: "right" as const, accessor: (l: Line) => l.pcsQty },
@@ -545,7 +603,7 @@ export default function EditSalePage() {
         onClose={() => router.push("/sale")}
       />
 
-      <div className="p-3 flex flex-col xl:flex-row gap-4 max-w-[1500px] mx-auto text-sm">
+      <div className="p-3 flex flex-col xl:flex-row gap-4 text-sm">
         {/* Left Column */}
         <div className="flex-1 min-w-0 flex flex-col gap-4">
           {/* Header */}
@@ -651,20 +709,6 @@ export default function EditSalePage() {
                   </td>
                 </tr>
                 <tr>
-                  <td className={rowLabel}>Godown <span className="text-red-500 font-bold">*</span></td>
-                  <td className="relative z-[63]">
-                    <div className="w-48">
-                      <Select
-                        options={godowns.map((g) => ({ value: g._id, label: g.name }))}
-                        value={godownId}
-                        onChange={setGodownId}
-                        className={selectClass}
-                        placeholder="Select Godown"
-                      />
-                    </div>
-                  </td>
-                </tr>
-                <tr>
                   <td className={rowLabel}>Notes</td>
                   <td>
                     <Input value={notes} onChange={(e) => setNotes(e.target.value)} className={`${inputClass} w-full`} />
@@ -683,11 +727,23 @@ export default function EditSalePage() {
                   <td className={rowLabel}>Item Name</td>
                   <td className="relative z-[55]">
                     <Select
-                      options={items.map((i) => ({ value: i._id, label: `${i.codeBarCode ? `[${i.codeBarCode}] ` : ""}${i.itemName}${i.hsnCode ? ` (${i.hsnCode})` : ""}` }))}
+                      options={itemDropdownOptions.map((i) => ({ value: i._id, label: itemLabel(i) }))}
                       value={selectedItemId}
                       onChange={setSelectedItemId}
                       className={selectClass}
                       placeholder="Select Item"
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <td className={rowLabel}>Godown <span className="text-red-500 font-bold">*</span></td>
+                  <td className="relative z-[54]">
+                    <Select
+                      options={godowns.map((g) => ({ value: g._id, label: godownLabel(g) }))}
+                      value={godownId}
+                      onChange={setGodownId}
+                      className={selectClass}
+                      placeholder="Select Godown"
                     />
                   </td>
                 </tr>
@@ -932,12 +988,12 @@ export default function EditSalePage() {
                   </td>
                 </tr>
                 <tr>
-                  <td className={rowLabel}>Pending Amount</td>
+                  <td className={rowLabel}>{pendingAmountValue < 0 ? "Advance (Overpaid)" : "Pending Amount"}</td>
                   <td>
                     <Input
                       readOnly
-                      value={(totals.netAmount - (parseFloat(receivedAmount) || 0)).toFixed(2)}
-                      className={`${inputClass} text-right bg-gray-50 font-bold text-red-600 w-48`}
+                      value={Math.abs(pendingAmountValue).toFixed(2)}
+                      className={`${inputClass} text-right bg-gray-50 font-bold w-48 ${pendingAmountValue < 0 ? "text-green-600" : "text-red-600"}`}
                     />
                   </td>
                 </tr>

@@ -313,12 +313,12 @@ export default function AddCustomerPage() {
                   <Input value={panNo} onChange={e => setPanNo(e.target.value)} maxLength={10} className="!h-9 uppercase" />
                 </div>
               </FieldRow>
-              <FieldRow label="Unique ID No.">
+              <FieldRow label="Customer ID">
                 <div className="w-64">
                   <Input value={uniqueIdNo} onChange={e => setUniqueIdNo(e.target.value)} className="!h-9" />
                 </div>
               </FieldRow>
-              <FieldRow label="Drug Lic. No.">
+              <FieldRow label="ISI No.">
                 <div className="max-w-xl w-full">
                   <Input value={drugLicNo} onChange={e => setDrugLicNo(e.target.value)} className="!h-9" />
                 </div>

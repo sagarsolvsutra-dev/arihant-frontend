@@ -23,6 +23,24 @@ function todayValue() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// "Godown Name - Group Name" — auto-derived from the godown's own godownGroupId
+// (already populated by godownService.getGodowns), instead of relying on the group
+// being manually typed into the godown's name.
+function godownLabel(g: { name: string; godownGroupId?: { _id: string; name: string } | string | null }) {
+  const groupName = typeof g.godownGroupId === "object" && g.godownGroupId ? g.godownGroupId.name : "";
+  return groupName ? `${g.name} - ${groupName}` : g.name;
+}
+
+// Same item name can legitimately repeat across different Sub Groups — include the
+// Sub Group in the Item Name dropdown's own label so two "Namkeen"s are distinguishable
+// without having to already know which HSN code belongs to which.
+function itemLabel(i: { itemName: string; hsnCode?: string; codeBarCode?: string; itemSubGroupId?: { _id: string; name: string } | string }) {
+  const subGroupName = typeof i.itemSubGroupId === "object" && i.itemSubGroupId ? i.itemSubGroupId.name : "";
+  const namePart = subGroupName ? `${i.itemName} - ${subGroupName}` : i.itemName;
+  const withHsn = i.hsnCode ? `${namePart} (${i.hsnCode})` : namePart;
+  return i.codeBarCode ? `[${i.codeBarCode}] ${withHsn}` : withHsn;
+}
+
 interface MrpEntry {
   mrp?: number;
   mrpActive?: boolean;
@@ -36,10 +54,12 @@ interface MrpEntry {
   netCostWholesaler?: number;
   netCostDistributor?: number;
   openingStockFreshPcs?: number;
+  openingStockExpiredPcs?: number;
   openingStockDamagedPcs?: number;
   godownStock?: {
     godownId: string;
     openingStockFreshPcs?: number;
+    openingStockExpiredPcs?: number;
     openingStockDamagedPcs?: number;
   }[];
 }
@@ -49,6 +69,7 @@ interface ItemRecord {
   itemName: string;
   hsnCode?: string;
   codeBarCode?: string;
+  itemSubGroupId?: { _id: string; name: string } | string;
   mrp?: number;
   salesRate?: number;
   retailRate?: number;
@@ -56,6 +77,7 @@ interface ItemRecord {
   packing?: number;
   gstPercentage?: number;
   openingStockFreshPcs?: number;
+  openingStockExpiredPcs?: number;
   openingStockDamagedPcs?: number;
   isActive?: boolean;
   mrpEntries?: MrpEntry[];
@@ -84,6 +106,7 @@ interface Line {
   pcsQty: number;
   freeQty: number;
   totalPieces: number;
+  godownId: string;
   afterGstRate: number;
   lessPercent: number;
   lessRs: number;
@@ -96,9 +119,19 @@ interface Line {
   gstAmount: number;
   netValue: number;
   // Fresh = resellable, gets added back into the sellable Fresh stock bucket.
-  // Damaged = recorded (visible in the Damaged stock figures) but NOT added
-  // back to sellable inventory. See saleReturnController.applyStockDelta.
-  condition: "Fresh" | "Damaged";
+  // Expired / Damaged = each recorded in their own respective stock bucket
+  // instead — visible on stock pages but NOT added back to sellable inventory.
+  // See saleReturnController.applyStockDelta.
+  condition: "Fresh" | "Expired" | "Damaged";
+}
+
+// Fresh = green (sellable), Expired = amber (existing), Damaged = red (new,
+// genuinely separate third state — both Expired and Damaged are now real,
+// independently-tracked stock buckets, not one bucket with two labels).
+function conditionPillClass(condition: string) {
+  if (condition === "Expired") return "bg-amber-100 text-amber-700";
+  if (condition === "Damaged") return "bg-red-100 text-red-700";
+  return "bg-green-100 text-green-700";
 }
 
 function computeLine(entry: {
@@ -140,13 +173,14 @@ export default function AddSaleReturnPage() {
   const savingRef = useRef(false);
   const [looking, setLooking] = useState(false);
   const [items, setItems] = useState<ItemRecord[]>([]);
+  // Unfiltered — see purchase/add/page.tsx for why this exists alongside `items`.
+  const [allItems, setAllItems] = useState<ItemRecord[]>([]);
   const [customers, setCustomers] = useState<CustomerRecord[]>([]);
-  const [godowns, setGodowns] = useState<{ _id: string; name: string }[]>([]);
+  const [godowns, setGodowns] = useState<{ _id: string; name: string; godownGroupId?: { _id: string; name: string } | string | null }[]>([]);
 
   // Header
   const [returnNo, setReturnNo] = useState("");
   const [returnDate, setReturnDate] = useState(todayValue);
-  const [godownId, setGodownId] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [originalInvoiceNo, setOriginalInvoiceNo] = useState("");
   const [originalSaleId, setOriginalSaleId] = useState("");
@@ -158,6 +192,9 @@ export default function AddSaleReturnPage() {
   const [dueDate, setDueDate] = useState("");
 
   // Entry row
+  // Per-line, not header-level — each added line carries its own godown, so a single
+  // return can bring different items back into different godowns.
+  const [godownId, setGodownId] = useState("");
   const [selectedItemId, setSelectedItemId] = useState("");
   const [selectedRateIndex, setSelectedRateIndex] = useState<number | null>(null);
   const [mrp, setMrp] = useState("0");
@@ -169,7 +206,7 @@ export default function AddSaleReturnPage() {
   const [lessRs, setLessRs] = useState("0");
   const [cdPercent, setCdPercent] = useState("0");
   const [cdRs, setCdRs] = useState("0");
-  const [condition, setCondition] = useState<"Fresh" | "Damaged">("Fresh");
+  const [condition, setCondition] = useState<"Fresh" | "Expired" | "Damaged">("Fresh");
 
   const [lines, setLines] = useState<Line[]>([]);
   // See sale/add/page.tsx for why this ref exists — lets handleEditLine restore a
@@ -180,6 +217,7 @@ export default function AddSaleReturnPage() {
     if (!companyId) return;
     itemService.getItems(companyId, 1, 1000).then((res: any) => {
       const list = res.data || res || [];
+      setAllItems(list);
       setItems(list.filter((i: ItemRecord) => i.isActive !== false));
     });
     customerService.getCustomers(companyId, 1, 1000).then((res: any) => {
@@ -195,7 +233,16 @@ export default function AddSaleReturnPage() {
   const selectedCustomer = customers.find((c) => c._id === customerId) || null;
   const customerType = selectedCustomer?.customerType || "Retailer";
 
-  const selectedItem = items.find((i) => i._id === selectedItemId) || null;
+  // Item Name is unscoped (no supplier-style filter), so the only way a currently-
+  // loaded item can be missing from `items` is deactivation — inject it back as an
+  // extra option so it stays visible/selectable instead of vanishing.
+  const selectedItemFallback =
+    selectedItemId && !items.some((i) => i._id === selectedItemId)
+      ? allItems.find((i) => i._id === selectedItemId)
+      : undefined;
+  const itemDropdownOptions = selectedItemFallback ? [...items, selectedItemFallback] : items;
+
+  const selectedItem = items.find((i) => i._id === selectedItemId) || allItems.find((i) => i._id === selectedItemId) || null;
 
   const activeRateEntries = (selectedItem?.mrpEntries || []).filter((e) => e.mrpActive !== false);
 
@@ -236,13 +283,17 @@ export default function AddSaleReturnPage() {
 
   const selectedRateEntry = selectedRateIndex !== null ? activeRateEntries[selectedRateIndex] : null;
 
-  const effectiveItem = selectedItem
-    ? {
-        ...selectedItem,
-        packing: selectedRateEntry?.packing ?? selectedItem.packing,
-        salesQty: selectedRateEntry?.salesQty ?? selectedItem.salesQty,
-      }
-    : null;
+  // See purchase/add/page.tsx — memoized so it only changes reference when
+  // selectedItem/selectedRateEntry actually do, instead of defeating the `preview`
+  // useMemo below by being a fresh object literal every render.
+  const effectiveItem = useMemo(() => {
+    if (!selectedItem) return null;
+    return {
+      ...selectedItem,
+      packing: selectedRateEntry?.packing ?? selectedItem.packing,
+      salesQty: selectedRateEntry?.salesQty ?? selectedItem.salesQty,
+    };
+  }, [selectedItem, selectedRateEntry]);
 
   const preview = useMemo(() => {
     if (!effectiveItem) return null;
@@ -287,6 +338,10 @@ export default function AddSaleReturnPage() {
     const rate = parseFloat(afterGstRate) || 0;
     const lessRsVal = parseFloat(lessRs) || 0;
     const cdRsVal = parseFloat(cdRs) || 0;
+    if (!godownId) {
+      toast.error("Select a Godown for this line");
+      return;
+    }
     if (c <= 0 && p <= 0) {
       toast.error("Enter Case or Pcs quantity");
       return;
@@ -300,6 +355,12 @@ export default function AddSaleReturnPage() {
       return;
     }
     if (!preview) return;
+    // See purchase/add/page.tsx — nothing previously capped combined discounts
+    // against the line's own amount.
+    if (preview.taxableValue < 0) {
+      toast.error("Discounts cannot exceed the line amount");
+      return;
+    }
 
     const line: Line = {
       key: `${selectedItem._id}-${Date.now()}`,
@@ -308,6 +369,7 @@ export default function AddSaleReturnPage() {
       packing: preview.packing,
       salesQty: preview.salesQty,
       mrp: parseFloat(mrp) || 0,
+      godownId,
       caseQty: c,
       pcsQty: p,
       freeQty: parseFloat(freeQty) || 0,
@@ -335,13 +397,14 @@ export default function AddSaleReturnPage() {
   };
 
   const handleEditLine = (line: Line) => {
-    const targetItem = items.find((i) => i._id === line.itemId);
+    const targetItem = items.find((i) => i._id === line.itemId) || allItems.find((i) => i._id === line.itemId);
     const targetActiveEntries = (targetItem?.mrpEntries || []).filter((e) => e.mrpActive !== false);
     const idx = targetActiveEntries.findIndex((e) => Math.abs((e.mrp ?? 0) - line.mrp) < 0.001);
 
     skipAutoFillRef.current = true;
     setSelectedItemId(line.itemId);
     setSelectedRateIndex(idx >= 0 ? idx : null);
+    setGodownId(line.godownId);
     setMrp(String(line.mrp));
     setCaseQty(String(line.caseQty));
     setPcsQty(String(line.pcsQty));
@@ -369,7 +432,6 @@ export default function AddSaleReturnPage() {
     try {
       const original: any = await saleReturnService.lookupOriginalInvoice(companyId, originalInvoiceNo.trim());
       setOriginalSaleId(original._id);
-      setGodownId(original.godownId);
       setCustomerId(typeof original.customerId === "string" ? original.customerId : original.customerId?._id || "");
       setOriginalInvoiceDate(original.invoiceDate ? new Date(original.invoiceDate).toISOString().slice(0, 10) : "");
 
@@ -380,6 +442,7 @@ export default function AddSaleReturnPage() {
         packing: l.packing,
         salesQty: l.salesQty,
         mrp: l.mrp,
+        godownId: typeof l.godownId === "string" ? l.godownId : l.godownId?._id || "",
         caseQty: l.caseQty,
         pcsQty: l.pcsQty,
         freeQty: l.freeQty,
@@ -425,6 +488,11 @@ export default function AddSaleReturnPage() {
     );
   }, [lines]);
 
+  // See purchase/add/page.tsx — negative means the customer has already been
+  // refunded more than this return is worth (a genuine excess, not an error); left
+  // unclamped, shown as a clearly-labeled Excess Refund instead.
+  const pendingAmountValue = totals.netAmount - (parseFloat(refundAmount) || 0);
+
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!companyId) return;
@@ -432,10 +500,6 @@ export default function AddSaleReturnPage() {
 
     if (!returnNo.trim() || !returnDate) {
       toast.error("Please fill Return No and Return Date");
-      return;
-    }
-    if (!godownId) {
-      toast.error("Please select a Godown");
       return;
     }
     // A Sale Return must be linked to a real original Sale — otherwise the Customer
@@ -462,7 +526,6 @@ export default function AddSaleReturnPage() {
         companyId,
         returnNo: returnNo.trim(),
         returnDate,
-        godownId,
         customerId,
         originalInvoiceNo: originalInvoiceNo.trim(),
         originalSaleId: originalSaleId || undefined,
@@ -472,6 +535,7 @@ export default function AddSaleReturnPage() {
         items: lines.map((l) => ({
           itemId: l.itemId,
           mrp: l.mrp,
+          godownId: l.godownId,
           caseQty: l.caseQty,
           pcsQty: l.pcsQty,
           freeQty: l.freeQty,
@@ -515,6 +579,9 @@ export default function AddSaleReturnPage() {
   const stockPacking = selectedRateEntry?.packing ?? selectedItem?.packing ?? 1;
   const stockCase = Math.floor(stockPcs / stockPacking);
   const stockLoose = stockPcs - stockCase * stockPacking;
+  const stockExpiredPcs = godownId
+    ? selectedGodownBucket?.openingStockExpiredPcs ?? 0
+    : selectedRateEntry?.openingStockExpiredPcs ?? selectedItem?.openingStockExpiredPcs ?? 0;
   const stockDamagedPcs = godownId
     ? selectedGodownBucket?.openingStockDamagedPcs ?? 0
     : selectedRateEntry?.openingStockDamagedPcs ?? selectedItem?.openingStockDamagedPcs ?? 0;
@@ -522,6 +589,14 @@ export default function AddSaleReturnPage() {
   const gridColumns = [
     { key: "idx", header: "#", accessor: (_: Line, i: number) => i + 1 },
     { key: "item", header: "Item Name", accessor: (l: Line) => l.itemName },
+    {
+      key: "godown",
+      header: "Godown",
+      accessor: (l: Line) => {
+        const g = godowns.find((gd) => gd._id === l.godownId);
+        return g ? godownLabel(g) : "-";
+      },
+    },
     { key: "mrp", header: "MRP Rs", align: "right" as const, accessor: (l: Line) => l.mrp.toFixed(2) },
     { key: "case", header: "Case", align: "right" as const, accessor: (l: Line) => l.caseQty },
     { key: "pcs", header: "Pcs", align: "right" as const, accessor: (l: Line) => l.pcsQty },
@@ -529,8 +604,8 @@ export default function AddSaleReturnPage() {
       key: "condition",
       header: "Condition",
       accessor: (l: Line) => (
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${l.condition === "Damaged" ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"}`}>
-          {l.condition === "Damaged" ? "Expired" : "Fresh"}
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${conditionPillClass(l.condition)}`}>
+          {l.condition}
         </span>
       ),
     },
@@ -562,7 +637,7 @@ export default function AddSaleReturnPage() {
         onClose={() => router.push("/sale-return")}
       />
 
-      <div className="p-3 flex flex-col xl:flex-row gap-4 max-w-[1500px] mx-auto text-sm">
+      <div className="p-3 flex flex-col xl:flex-row gap-4 text-sm">
         <div className="flex-1 min-w-0 flex flex-col gap-4">
           {/* Header */}
           <div className="border border-gray-300 bg-white p-4 rounded-md shadow-sm">
@@ -572,7 +647,23 @@ export default function AddSaleReturnPage() {
                   <td className={rowLabel}>Original Invoice No. <span className="text-red-500 font-bold">*</span></td>
                   <td className="relative z-[70]">
                     <div className="flex items-center gap-2 w-72">
-                      <Input value={originalInvoiceNo} onChange={(e) => setOriginalInvoiceNo(e.target.value)} className={`${inputClass} flex-1`} placeholder="Enter invoice number and Fetch" />
+                      <Input
+                        value={originalInvoiceNo}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setOriginalInvoiceNo(next);
+                          // Editing the invoice number after a successful Fetch used to
+                          // leave `originalSaleId` pointing at the PREVIOUSLY fetched
+                          // sale — Save's "must be linked to a real sale" guard only
+                          // checked that *some* id was set, not that it still matched
+                          // this text, so a retyped-but-not-refetched number saved with
+                          // a real link to the wrong sale. Clearing the link here forces
+                          // a fresh Fetch before Save will accept it again.
+                          if (originalSaleId) setOriginalSaleId("");
+                        }}
+                        className={`${inputClass} flex-1`}
+                        placeholder="Enter invoice number and Fetch"
+                      />
                       <Button type="button" size="sm" variant="outline" onClick={handleLookupInvoice} disabled={looking} leftIcon={<Search size={14} />}>
                         {looking ? "..." : "Fetch"}
                       </Button>
@@ -648,20 +739,6 @@ export default function AddSaleReturnPage() {
                   </td>
                 </tr>
                 <tr>
-                  <td className={rowLabel}>Godown <span className="text-red-500 font-bold">*</span></td>
-                  <td className="relative z-[63]">
-                    <div className="w-48">
-                      <Select
-                        options={godowns.map((g) => ({ value: g._id, label: g.name }))}
-                        value={godownId}
-                        onChange={setGodownId}
-                        className={selectClass}
-                        placeholder="Select Godown"
-                      />
-                    </div>
-                  </td>
-                </tr>
-                <tr>
                   <td className={rowLabel}>Notes</td>
                   <td>
                     <Input value={notes} onChange={(e) => setNotes(e.target.value)} className={`${inputClass} w-full`} />
@@ -680,11 +757,23 @@ export default function AddSaleReturnPage() {
                   <td className={rowLabel}>Item Name</td>
                   <td className="relative z-[55]">
                     <Select
-                      options={items.map((i) => ({ value: i._id, label: `${i.codeBarCode ? `[${i.codeBarCode}] ` : ""}${i.itemName}${i.hsnCode ? ` (${i.hsnCode})` : ""}` }))}
+                      options={itemDropdownOptions.map((i) => ({ value: i._id, label: itemLabel(i) }))}
                       value={selectedItemId}
                       onChange={setSelectedItemId}
                       className={selectClass}
                       placeholder="Select Item"
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <td className={rowLabel}>Godown <span className="text-red-500 font-bold">*</span></td>
+                  <td className="relative z-[54]">
+                    <Select
+                      options={godowns.map((g) => ({ value: g._id, label: godownLabel(g) }))}
+                      value={godownId}
+                      onChange={setGodownId}
+                      className={selectClass}
+                      placeholder="Select Godown"
                     />
                   </td>
                 </tr>
@@ -737,10 +826,11 @@ export default function AddSaleReturnPage() {
                       <Select
                         options={[
                           { value: "Fresh", label: "Fresh (resellable)" },
-                          { value: "Damaged", label: "Expired" },
+                          { value: "Expired", label: "Expired" },
+                          { value: "Damaged", label: "Damaged" },
                         ]}
                         value={condition}
-                        onChange={(v) => setCondition(v as "Fresh" | "Damaged")}
+                        onChange={(v) => setCondition(v as "Fresh" | "Expired" | "Damaged")}
                         className={selectClass}
                       />
                     </div>
@@ -869,9 +959,9 @@ export default function AddSaleReturnPage() {
                 <div>
                   <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-medium uppercase tracking-wide mb-2">
                     <Boxes size={12} />
-                    Stock in this Godown — returning as <span className={condition === "Damaged" ? "text-amber-700" : "text-green-700"}>{condition === "Damaged" ? "Expired" : "Fresh"}</span> adds to that bucket only
+                    Stock in this Godown — returning as <span className={condition === "Expired" ? "text-amber-700" : condition === "Damaged" ? "text-red-700" : "text-green-700"}>{condition}</span> adds to that bucket only
                   </div>
-                  <div className="grid grid-cols-4 gap-2 text-center">
+                  <div className="grid grid-cols-5 gap-2 text-center">
                     <div className={`bg-green-50 border rounded-lg py-2 ${condition === "Fresh" ? "border-green-400 ring-1 ring-green-300" : "border-green-100"}`}>
                       <div className="text-sm font-bold text-green-700">{stockPcs.toFixed(1)}</div>
                       <div className="text-[10px] text-green-600">Total Pcs</div>
@@ -884,9 +974,13 @@ export default function AddSaleReturnPage() {
                       <div className="text-sm font-bold text-green-700">{stockLoose.toFixed(1)}</div>
                       <div className="text-[10px] text-green-600">Loose</div>
                     </div>
-                    <div className={`bg-amber-50 border rounded-lg py-2 ${condition === "Damaged" ? "border-amber-400 ring-1 ring-amber-300" : "border-amber-100"}`}>
-                      <div className="text-sm font-bold text-amber-700">{stockDamagedPcs.toFixed(1)}</div>
+                    <div className={`bg-amber-50 border rounded-lg py-2 ${condition === "Expired" ? "border-amber-400 ring-1 ring-amber-300" : "border-amber-100"}`}>
+                      <div className="text-sm font-bold text-amber-700">{stockExpiredPcs.toFixed(1)}</div>
                       <div className="text-[10px] text-amber-600">Expired</div>
+                    </div>
+                    <div className={`bg-red-50 border rounded-lg py-2 ${condition === "Damaged" ? "border-red-400 ring-1 ring-red-300" : "border-red-100"}`}>
+                      <div className="text-sm font-bold text-red-700">{stockDamagedPcs.toFixed(1)}</div>
+                      <div className="text-[10px] text-red-600">Damaged</div>
                     </div>
                   </div>
                 </div>
@@ -942,12 +1036,12 @@ export default function AddSaleReturnPage() {
                   </td>
                 </tr>
                 <tr>
-                  <td className={rowLabel}>Pending Amount</td>
+                  <td className={rowLabel}>{pendingAmountValue < 0 ? "Excess Refund" : "Pending Amount"}</td>
                   <td>
                     <Input
                       readOnly
-                      value={(totals.netAmount - (parseFloat(refundAmount) || 0)).toFixed(2)}
-                      className={`${inputClass} text-right bg-gray-50 font-bold text-red-600 w-48`}
+                      value={Math.abs(pendingAmountValue).toFixed(2)}
+                      className={`${inputClass} text-right bg-gray-50 font-bold w-48 ${pendingAmountValue < 0 ? "text-green-600" : "text-red-600"}`}
                     />
                   </td>
                 </tr>
