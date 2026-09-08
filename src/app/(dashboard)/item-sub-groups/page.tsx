@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Search, AlertCircle } from "lucide-react";
+import { Plus, Search, AlertCircle, RefreshCw } from "lucide-react";
 import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -256,28 +256,27 @@ export default function ItemSubGroupsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Item Sub Groups</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-lg font-bold text-gray-900">Item Sub Groups</h1>
+          <p className="text-xs text-gray-500 mt-0.5">
             Manage item sub-groups under your company
           </p>
         </div>
-        <Button
-          onClick={openAdd}
-          leftIcon={<Plus size={16} />}
-          className="btn-primary"
-        >
-          Add Sub Group
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={loadRecords} className="px-2.5 hover:bg-gray-50" title="Refresh">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button onClick={openAdd} size="sm" leftIcon={<Plus size={14} />} className="btn-primary">
+            Add Sub Group
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
-      <div className="card p-4">
-        <SearchInput
-          value={searchQuery}
-          onChange={handleSearchChange}
-          placeholder="Search sub groups..."
-        />
-      </div>
+      <SearchInput
+        value={searchQuery}
+        onChange={handleSearchChange}
+        placeholder="Search sub groups..."
+      />
 
       {/* Table */}
       <div className="card">

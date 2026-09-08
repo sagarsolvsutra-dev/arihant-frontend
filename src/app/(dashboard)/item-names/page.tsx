@@ -220,17 +220,17 @@ setRecords([]);
   ];
 
   return (
-    <div className="flex flex-col gap-6 w-full">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-5">
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-lg font-bold text-gray-900">
             Item Names (આઇટમ નેમ્સ લિસ્ટ)
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 mt-0.5">
             Manage product names and their groups.
           </p>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-3">
           <Button
             variant="outline"
             size="sm"
@@ -241,31 +241,28 @@ setRecords([]);
             <RefreshCw className="h-4 w-4" />
           </Button>
           <Button
-            variant="primary"
-            size="sm"
             onClick={() => {
               resetForm();
               setIsFormOpen(true);
             }}
-            className="bg-black hover:bg-gray-900 text-white border-none cursor-pointer"
-            leftIcon={<Plus className="h-4 w-4" />}
+            size="sm"
+            leftIcon={<Plus size={14} />}
+            className="btn-primary"
           >
             Add Item Name
           </Button>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl border border-gray-100 shadow-xs">
-        <SearchInput
-          placeholder="Search by name..."
-          value={searchQuery}
-          onChange={setSearchQuery}
-        />
-      </div>
+      <SearchInput
+        placeholder="Search by name..."
+        value={searchQuery}
+        onChange={setSearchQuery}
+      />
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-xs p-6">
-        <Table 
-          columns={columns} 
+      <div className="card">
+        <Table
+          columns={columns}
           data={records} 
           isLoading={isLoading} 
         />

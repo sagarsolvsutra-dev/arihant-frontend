@@ -386,7 +386,7 @@ export default function GodownStockPage() {
           Back
         </Button>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
             <Boxes size={20} className="text-green-600" />
             {godownName} — Stock
           </h1>
@@ -396,9 +396,7 @@ export default function GodownStockPage() {
         </div>
       </div>
 
-      <div className="card p-4">
-        <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search items in this godown..." />
-      </div>
+      <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search items in this godown..." />
 
       <div className="grid grid-cols-3 gap-4">
         <div className="card p-4 flex items-center gap-3">

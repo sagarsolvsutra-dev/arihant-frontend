@@ -241,7 +241,7 @@ export default function SupplierPurchaseHistoryPage() {
           Back
         </Button>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
             <Receipt size={20} className="text-green-600" />
             {supplierName} — Purchase History
           </h1>

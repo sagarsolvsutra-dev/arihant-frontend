@@ -229,7 +229,7 @@ export default function CustomerSalesHistoryPage() {
           Back
         </Button>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
             <Receipt size={20} className="text-blue-600" />
             {customerName} — Sale History
           </h1>

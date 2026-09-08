@@ -142,21 +142,19 @@ export default function StockTransferListPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Stock Transfer</h1>
-          <p className="text-sm text-gray-500 mt-1">Move stock directly from one godown to another</p>
+          <h1 className="text-lg font-bold text-gray-900">Stock Transfer</h1>
+          <p className="text-xs text-gray-500 mt-0.5">Move stock directly from one godown to another</p>
         </div>
-        <Button onClick={() => router.push("/stock-transfer/add")} leftIcon={<Plus size={16} />} className="btn-primary">
+        <Button onClick={() => router.push("/stock-transfer/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary">
           Add Stock Transfer
         </Button>
       </div>
 
-      <div className="card p-4">
-        <SearchInput
-          value={searchQuery}
-          onChange={handleSearchChange}
-          placeholder="Search by transfer no..."
-        />
-      </div>
+      <SearchInput
+        value={searchQuery}
+        onChange={handleSearchChange}
+        placeholder="Search by transfer no..."
+      />
 
       <div className="card">
         <Table

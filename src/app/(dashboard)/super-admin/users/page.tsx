@@ -349,11 +349,11 @@ export default function UsersPage() {
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Users className="h-6 w-6" />
+            <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Users className="h-5 w-5" />
               All Users
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 mt-0.5">
               Manage all users across the system
             </p>
           </div>

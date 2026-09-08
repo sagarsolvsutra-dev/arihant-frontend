@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Table } from "@/components/ui/Table";
@@ -131,21 +131,24 @@ export default function SuppliersPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Suppliers</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage supplier accounts</p>
+          <h1 className="text-lg font-bold text-gray-900">Suppliers</h1>
+          <p className="text-xs text-gray-500 mt-0.5">Manage supplier accounts</p>
         </div>
-        <Button onClick={() => router.push("/suppliers/add")} leftIcon={<Plus size={16} />} className="btn-primary">
-          Add Supplier
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={loadRecords} className="px-2.5 hover:bg-gray-50" title="Refresh">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button onClick={() => router.push("/suppliers/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary">
+            Add Supplier
+          </Button>
+        </div>
       </div>
 
-      <div className="card p-4">
-        <SearchInput
-          value={searchQuery}
-          onChange={handleSearchChange}
-          placeholder="Search suppliers..."
-        />
-      </div>
+      <SearchInput
+        value={searchQuery}
+        onChange={handleSearchChange}
+        placeholder="Search suppliers..."
+      />
 
       <div className="card">
         <Table

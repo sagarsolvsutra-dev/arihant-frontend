@@ -164,21 +164,19 @@ export default function SaleListPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Sell (વેચાણ)</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage sale invoices</p>
+          <h1 className="text-lg font-bold text-gray-900">Sell (વેચાણ)</h1>
+          <p className="text-xs text-gray-500 mt-0.5">Manage sale invoices</p>
         </div>
-        <Button onClick={() => router.push("/sale/add")} leftIcon={<Plus size={16} />} className="btn-primary">
+        <Button onClick={() => router.push("/sale/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary">
           Add Sale
         </Button>
       </div>
 
-      <div className="card p-4">
-        <SearchInput
-          value={searchQuery}
-          onChange={handleSearchChange}
-          placeholder="Search by invoice no..."
-        />
-      </div>
+      <SearchInput
+        value={searchQuery}
+        onChange={handleSearchChange}
+        placeholder="Search by invoice no..."
+      />
 
       <div className="card">
         <Table

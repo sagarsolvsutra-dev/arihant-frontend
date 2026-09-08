@@ -267,22 +267,14 @@ setHsnCodes([]);
   ];
 
   return (
-    <div className="flex flex-col gap-6 w-full">
-      {/* Section Header Cards */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-xs p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6">
+      {/* Header section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">HSN કોડ્સ લિસ્ટ (HSN Codes)</h2>
+          <h1 className="text-lg font-bold text-gray-900">HSN કોડ્સ લિસ્ટ (HSN Codes)</h1>
           <p className="text-xs text-gray-500 mt-0.5">Government tax rates matching HSN libraries for items.</p>
         </div>
-
         <div className="flex items-center gap-3">
-          <div className="relative w-64">
-            <SearchInput
-              placeholder="Search HSN code or description..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-            />
-          </div>
           <Button
             variant="outline"
             size="sm"
@@ -293,24 +285,31 @@ setHsnCodes([]);
             <RefreshCw className="h-4 w-4" />
           </Button>
           <Button
-            variant="primary"
-            size="sm"
-            className="h-9 px-4 bg-black hover:bg-gray-900 border-none"
-            leftIcon={<Plus className="h-4 w-4" />}
             onClick={() => {
               resetForm();
               setIsFormOpen(true);
             }}
+            size="sm"
+            leftIcon={<Plus size={14} />}
+            className="btn-primary"
           >
             Add HSN Code
           </Button>
         </div>
       </div>
 
+      <div className="relative w-64">
+        <SearchInput
+          placeholder="Search HSN code or description..."
+          value={searchQuery}
+          onChange={handleSearchChange}
+        />
+      </div>
+
       {/* Main Table area */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-xs p-6">
-        <Table 
-          columns={columns} 
+      <div className="card">
+        <Table
+          columns={columns}
           data={hsnCodes} 
           isLoading={isLoading} 
           pagination={{
@@ -332,7 +331,7 @@ setHsnCodes([]);
             <Button variant="ghost" size="sm" onClick={() => setIsFormOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" size="sm" className="bg-black hover:bg-gray-900 text-white border-none" onClick={handleSave}>
+            <Button size="sm" onClick={handleSave}>
               Save
             </Button>
           </>

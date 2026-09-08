@@ -152,21 +152,19 @@ export default function PurchaseListPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Purchase</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage purchase invoices</p>
+          <h1 className="text-lg font-bold text-gray-900">Purchase</h1>
+          <p className="text-xs text-gray-500 mt-0.5">Manage purchase invoices</p>
         </div>
-        <Button onClick={() => router.push("/purchase/add")} leftIcon={<Plus size={16} />} className="btn-primary">
+        <Button onClick={() => router.push("/purchase/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary">
           Add Purchase
         </Button>
       </div>
 
-      <div className="card p-4">
-        <SearchInput
-          value={searchQuery}
-          onChange={handleSearchChange}
-          placeholder="Search by invoice no..."
-        />
-      </div>
+      <SearchInput
+        value={searchQuery}
+        onChange={handleSearchChange}
+        placeholder="Search by invoice no..."
+      />
 
       <div className="card">
         <Table

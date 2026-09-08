@@ -383,7 +383,7 @@ export default function ItemStockPage() {
           Back
         </Button>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
             <Boxes size={20} className="text-green-600" />
             {item.itemName} — Stock
           </h1>

@@ -179,18 +179,18 @@ setGroups([]);
   ];
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div className="space-y-6">
       {/* Header section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-lg font-bold text-gray-900">
             Supplier Groups (સપ્લાયર ગ્રુપ્સ લિસ્ટ)
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 mt-0.5">
             Group suppliers for procurement management and reporting.
           </p>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-3">
           <Button
             variant="outline"
             size="sm"
@@ -201,14 +201,13 @@ setGroups([]);
             <RefreshCw className="h-4 w-4" />
           </Button>
           <Button
-            variant="primary"
-            size="sm"
             onClick={() => {
               resetForm();
               setIsFormOpen(true);
             }}
-            className="bg-black hover:bg-gray-900 text-white border-none cursor-pointer"
-            leftIcon={<Plus className="h-4 w-4" />}
+            size="sm"
+            leftIcon={<Plus size={14} />}
+            className="btn-primary"
           >
             Add Supplier Group
           </Button>
@@ -216,17 +215,15 @@ setGroups([]);
       </div>
 
       {/* Search Input */}
-      <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl border border-gray-100 shadow-xs">
-        <SearchInput
-          placeholder="Search by group name..."
-          value={searchQuery}
-          onChange={handleSearchChange}
-        />
-      </div>
+      <SearchInput
+        placeholder="Search by group name..."
+        value={searchQuery}
+        onChange={handleSearchChange}
+      />
 
       {/* Main Table area */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-xs p-6">
-        <Table 
+      <div className="card">
+        <Table
           columns={columns} 
           data={groups} 
           isLoading={isLoading} 
@@ -248,12 +245,7 @@ setGroups([]);
             <Button variant="ghost" size="sm" onClick={() => setIsFormOpen(false)}>
               Cancel
             </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              className="bg-black hover:bg-gray-900 text-white border-none"
-              onClick={handleSave}
-            >
+            <Button size="sm" onClick={handleSave}>
               Save
             </Button>
           </>
