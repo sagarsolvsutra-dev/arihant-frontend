@@ -15,7 +15,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Input } from "@/components/ui/Input";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Select } from "@/components/ui/Select";
@@ -392,6 +392,7 @@ export default function UsersPage() {
           placeholder="Search users by name, email, phone..."
           value={searchQuery}
           onChange={(val) => setSearchQuery(val)}
+          className="!py-1.5 !text-xs"
         />
 
         <div className="text-xs text-gray-500">

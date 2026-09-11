@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
-import { Plus, Search, RefreshCw } from "lucide-react";
+import { Plus, Search, RefreshCw, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { DatePicker } from "@/components/ui/DatePicker";
+import { exportListService } from "@/services/exportListService";
 import { Table } from "@/components/ui/Table";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
@@ -30,6 +32,8 @@ export default function SaleOpeningBillsPage() {
   const [records, setRecords] = useState<OpeningBillRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState<OpeningBillRecord | null>(null);
 
@@ -51,6 +55,11 @@ export default function SaleOpeningBillsPage() {
     }
   };
 
+  const handleExportExcel = () => {
+    if (!companyId) return;
+    exportListService.exportList("opening-bills-sale", companyId, { dateFrom, dateTo });
+  };
+
   const confirmDelete = async () => {
     if (!deletingRecord?._id) return;
     try {
@@ -69,7 +78,11 @@ export default function SaleOpeningBillsPage() {
 
   const filtered = records.filter((r) => {
     const q = searchQuery.toLowerCase();
-    return partyName(r).toLowerCase().includes(q) || (r.billNo || "").toLowerCase().includes(q);
+    const matchesSearch = partyName(r).toLowerCase().includes(q) || (r.billNo || "").toLowerCase().includes(q);
+    const billDay = r.billDate ? r.billDate.slice(0, 10) : "";
+    const matchesFrom = !dateFrom || (billDay && billDay >= dateFrom);
+    const matchesTo = !dateTo || (billDay && billDay <= dateTo);
+    return matchesSearch && matchesFrom && matchesTo;
   });
 
   const columns = [
@@ -113,17 +126,31 @@ export default function SaleOpeningBillsPage() {
           <Button variant="outline" size="sm" onClick={loadRecords} className="px-2.5 hover:bg-gray-50" title="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button onClick={() => router.push("/opening-bills/sale/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary">
+          <Button onClick={() => router.push("/opening-bills/sale/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
             Add Bill
           </Button>
         </div>
       </div>
 
-      <SearchInput
-        value={searchQuery}
-        onChange={setSearchQuery}
-        placeholder="Search bills..."
-      />
+      <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+        <div className="flex-1">
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search bills..."
+            className="!py-1.5 !text-xs"
+          />
+        </div>
+        <div className="w-full sm:w-36">
+          <DatePicker value={dateFrom} onChange={setDateFrom} placeholder="From" className="!py-1.5 !text-xs" />
+        </div>
+        <div className="w-full sm:w-36">
+          <DatePicker value={dateTo} onChange={setDateTo} placeholder="To" minDate={dateFrom || undefined} className="!py-1.5 !text-xs" />
+        </div>
+        <Button variant="outline" size="sm" onClick={handleExportExcel} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
+          Excel
+        </Button>
+      </div>
 
       <div className="card">
         <Table

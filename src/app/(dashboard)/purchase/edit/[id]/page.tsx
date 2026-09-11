@@ -13,7 +13,7 @@ import { purchaseService } from "@/services/purchaseService";
 import { itemService } from "@/services/itemService";
 import { supplierService } from "@/services/supplierService";
 import { godownService } from "@/services/godownService";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Plus, X, Pencil, Package, Boxes, TrendingUp } from "lucide-react";
 
 interface MrpEntry {
@@ -557,6 +557,15 @@ export default function EditPurchasePage() {
   const gridColumns = [
     { key: "idx", header: "#", accessor: (_: Line, i: number) => i + 1 },
     { key: "item", header: "Item Name", accessor: (l: Line) => l.itemName },
+    {
+      key: "subGroup",
+      header: "Sub Group",
+      accessor: (l: Line) => {
+        const item = allItems.find((i) => i._id === l.itemId);
+        const sub = item && typeof item.itemSubGroupId === "object" ? item.itemSubGroupId?.name : "";
+        return sub || "-";
+      },
+    },
     {
       key: "godown",
       header: "Godown",

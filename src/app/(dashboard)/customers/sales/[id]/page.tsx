@@ -12,7 +12,7 @@ import { saleService } from "@/services/saleService";
 import { saleReturnService } from "@/services/saleReturnService";
 import { customerService } from "@/services/customerService";
 import { splitCasePcs } from "@/lib/stock";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 interface SaleLine {
   itemId: string;
@@ -39,6 +39,7 @@ interface LineRow {
   invoiceNo: string;
   invoiceDate: string;
   itemName: string;
+  subGroupName: string;
   caseQty: number;
   pcsQty: number;
   totalPieces: number;
@@ -48,6 +49,7 @@ interface LineRow {
 
 interface ItemSummaryRow {
   itemName: string;
+  subGroupName: string;
   totalCase: number;
   totalPcs: number;
   totalTaxableValue: number;
@@ -55,6 +57,7 @@ interface ItemSummaryRow {
 }
 
 interface SaleReturnLine {
+  itemId?: string;
   itemName: string;
   caseQty?: number;
   pcsQty?: number;
@@ -75,6 +78,7 @@ interface ReturnLineRow {
   returnNo: string;
   returnDate: string;
   itemName: string;
+  subGroupName: string;
   caseQty: number;
   pcsQty: number;
   rate: number;
@@ -107,6 +111,19 @@ export default function CustomerSalesHistoryPage() {
       .then(([customerRes, itemRes, saleRes, saleReturnRes]: [any, any, any, any]) => {
         setCustomerName(customerRes?.name || "(unknown customer)");
 
+        // Unlike Purchase (which has no supplierId field), Sale.customerId IS a real,
+        // persisted field — no join through Item is needed, just a direct filter.
+        const itemList = itemRes.data || itemRes || [];
+        const itemPackingMap = new Map<string, number>(
+          itemList.map((i: any) => [i._id, parseFloat(String(i.packing)) || 1])
+        );
+        // Same item name can legitimately repeat across different Sub Groups (see
+        // CLAUDE.md's Item model note) — every table on this page shows Sub Group
+        // alongside Item Name so two same-named items stay distinguishable.
+        const itemSubGroupMap = new Map<string, string>(
+          itemList.map((i: any) => [i._id, (typeof i.itemSubGroupId === "object" ? i.itemSubGroupId?.name : "") || "-"])
+        );
+
         // SaleReturn.customerId IS a real, persisted field — direct filter, no join.
         const returnList: SaleReturnRecord[] = saleReturnRes.data || saleReturnRes || [];
         const returnLines: ReturnLineRow[] = [];
@@ -119,6 +136,7 @@ export default function CustomerSalesHistoryPage() {
               returnNo: sr.returnNo,
               returnDate: sr.returnDate,
               itemName: line.itemName,
+              subGroupName: (line.itemId && itemSubGroupMap.get(line.itemId)) || "-",
               caseQty: line.caseQty || 0,
               pcsQty: line.pcsQty || 0,
               rate: line.afterGstRate || 0,
@@ -129,16 +147,9 @@ export default function CustomerSalesHistoryPage() {
         returnLines.sort((a, b) => new Date(b.returnDate).getTime() - new Date(a.returnDate).getTime());
         setReturnLineRows(returnLines);
 
-        // Unlike Purchase (which has no supplierId field), Sale.customerId IS a real,
-        // persisted field — no join through Item is needed, just a direct filter.
-        const itemList = itemRes.data || itemRes || [];
-        const itemPackingMap = new Map<string, number>(
-          itemList.map((i: any) => [i._id, parseFloat(String(i.packing)) || 1])
-        );
-
         const saleList: SaleRecord[] = saleRes.data || saleRes || [];
         const lines: LineRow[] = [];
-        const summaryPiecesMap = new Map<string, { itemName: string; totalPieces: number; totalTaxableValue: number; totalNetValue: number }>();
+        const summaryPiecesMap = new Map<string, { itemName: string; subGroupName: string; totalPieces: number; totalTaxableValue: number; totalNetValue: number }>();
         let pending = 0;
 
         saleList.forEach((s) => {
@@ -158,6 +169,7 @@ export default function CustomerSalesHistoryPage() {
               invoiceNo: s.invoiceNo,
               invoiceDate: s.invoiceDate,
               itemName: line.itemName,
+              subGroupName: itemSubGroupMap.get(line.itemId) || "-",
               caseQty,
               pcsQty,
               totalPieces,
@@ -167,6 +179,7 @@ export default function CustomerSalesHistoryPage() {
 
             const existing = summaryPiecesMap.get(line.itemId) || {
               itemName: line.itemName,
+              subGroupName: itemSubGroupMap.get(line.itemId) || "-",
               totalPieces: 0,
               totalTaxableValue: 0,
               totalNetValue: 0,
@@ -184,6 +197,7 @@ export default function CustomerSalesHistoryPage() {
             const split = splitCasePcs(v.totalPieces, itemPackingMap.get(itemId) || 1);
             return {
               itemName: v.itemName,
+              subGroupName: v.subGroupName,
               totalCase: split.case,
               totalPcs: split.pcs,
               totalTaxableValue: v.totalTaxableValue,
@@ -258,6 +272,7 @@ export default function CustomerSalesHistoryPage() {
         <Table
           columns={[
             { key: "item", header: "Item", accessor: (r: ItemSummaryRow) => r.itemName, primary: true },
+            { key: "subGroup", header: "Sub Group", accessor: (r: ItemSummaryRow) => r.subGroupName },
             { key: "case", header: "Total Case", align: "right" as const, accessor: (r: ItemSummaryRow) => r.totalCase },
             { key: "pcs", header: "Total Pcs (loose)", align: "right" as const, accessor: (r: ItemSummaryRow) => r.totalPcs },
             { key: "taxable", header: "Taxable Value", align: "right" as const, accessor: (r: ItemSummaryRow) => `₹${r.totalTaxableValue.toFixed(2)}` },
@@ -295,6 +310,7 @@ export default function CustomerSalesHistoryPage() {
                     },
                     { key: "date", header: "Date", accessor: (r: LineRow) => (r.invoiceDate ? new Date(r.invoiceDate).toLocaleDateString("en-IN") : "-") },
                     { key: "item", header: "Item", accessor: (r: LineRow) => r.itemName },
+                    { key: "subGroup", header: "Sub Group", accessor: (r: LineRow) => r.subGroupName },
                     { key: "case", header: "Case", align: "right" as const, accessor: (r: LineRow) => r.caseQty },
                     { key: "pcs", header: "Pcs", align: "right" as const, accessor: (r: LineRow) => r.pcsQty },
                     { key: "rate", header: "Rate", align: "right" as const, accessor: (r: LineRow) => `₹${r.rate.toFixed(2)}` },
@@ -329,6 +345,7 @@ export default function CustomerSalesHistoryPage() {
                     },
                     { key: "date", header: "Date", accessor: (r: ReturnLineRow) => (r.returnDate ? new Date(r.returnDate).toLocaleDateString("en-IN") : "-") },
                     { key: "item", header: "Item", accessor: (r: ReturnLineRow) => r.itemName },
+                    { key: "subGroup", header: "Sub Group", accessor: (r: ReturnLineRow) => r.subGroupName },
                     { key: "case", header: "Case", align: "right" as const, accessor: (r: ReturnLineRow) => r.caseQty },
                     { key: "pcs", header: "Pcs", align: "right" as const, accessor: (r: ReturnLineRow) => r.pcsQty },
                     { key: "rate", header: "Rate", align: "right" as const, accessor: (r: ReturnLineRow) => `₹${r.rate.toFixed(2)}` },

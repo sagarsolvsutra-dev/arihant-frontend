@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
 import { useRouter } from "next/navigation";
-import { Plus, Search, RefreshCw } from "lucide-react";
+import { Plus, Search, RefreshCw, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { exportListService } from "@/services/exportListService";
 import { Input } from "@/components/ui/Input";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Table } from "@/components/ui/Table";
@@ -12,7 +13,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { schemeService } from "@/services/schemeService";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 interface SchemeRecord {
   id?: string;
@@ -128,7 +129,10 @@ export default function SchemesPage() {
           <Button variant="outline" size="sm" onClick={loadRecords} className="px-2.5 hover:bg-gray-50" title="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button onClick={openAdd} size="sm" leftIcon={<Plus size={14} />} className="btn-primary">
+          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("schemes", companyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
+            Excel
+          </Button>
+          <Button onClick={openAdd} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
             Add Scheme
           </Button>
         </div>

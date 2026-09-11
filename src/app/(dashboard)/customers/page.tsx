@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
-import { Plus, Search, RefreshCw } from "lucide-react";
+import { EditButton, DeleteButton, LedgerButton } from "@/components/ui/ActionButtons";
+import { Plus, Search, RefreshCw, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { exportListService } from "@/services/exportListService";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Select } from "@/components/ui/Select";
 import { Table } from "@/components/ui/Table";
@@ -11,7 +12,7 @@ import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { customerService } from "@/services/customerService";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 interface CustomerRecord {
   id?: string;
@@ -28,6 +29,8 @@ interface CustomerRecord {
   zoneNo?: string;
   isActive: boolean;
   creditLimit?: number;
+  creditDays?: number;
+  isOverdue?: boolean;
   openingBalance?: number;
 }
 
@@ -146,10 +149,26 @@ export default function CustomersPage() {
       ),
     },
     {
+      key: "payment",
+      header: "Payment",
+      accessor: (r: CustomerRecord) =>
+        r.isOverdue ? (
+          <span
+            className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700"
+            title={`Unpaid past ${r.creditDays} day${r.creditDays === 1 ? "" : "s"} due — see Ledger for details`}
+          >
+            Overdue
+          </span>
+        ) : (
+          <span className="text-gray-300">-</span>
+        ),
+    },
+    {
       key: "actions",
       header: "Actions",
       accessor: (r: CustomerRecord) => (
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+          <LedgerButton onClick={() => router.push(`/customers/ledger/${r._id}`)} />
           <EditButton onClick={() => router.push(`/customers/edit/${r._id}`)} />
           <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
         </div>
@@ -176,7 +195,10 @@ export default function CustomersPage() {
           <Button variant="outline" size="sm" onClick={loadRecords} className="px-2.5 hover:bg-gray-50" title="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button onClick={() => router.push("/customers/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary">
+          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("customers", companyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
+            Excel
+          </Button>
+          <Button onClick={() => router.push("/customers/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
             Add Customer
           </Button>
         </div>
@@ -188,6 +210,7 @@ export default function CustomersPage() {
             value={searchQuery}
             onChange={handleSearchChange}
             placeholder="Search customers..."
+            className="!py-1.5 !text-xs"
           />
         </div>
         <div className="w-full md:w-56">
@@ -202,6 +225,7 @@ export default function CustomersPage() {
             onChange={handleTypeFilterChange}
             placeholder="All Customer Types"
             searchable={false}
+            className="!py-1.5 !text-xs"
           />
         </div>
       </div>

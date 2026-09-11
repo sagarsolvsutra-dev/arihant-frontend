@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
-import { Plus, Search, AlertCircle, RefreshCw } from "lucide-react";
+import { Plus, Search, AlertCircle, RefreshCw, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { exportListService } from "@/services/exportListService";
 import { Input } from "@/components/ui/Input";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Select } from "@/components/ui/Select";
@@ -12,7 +13,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { hsnService } from "@/services/hsnService";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 interface HsnCodeRecord {
   id: string;
@@ -182,8 +183,10 @@ setHsnCodes([]);
           description: payload.description,
           uqcUnit: payload.uqcUnit,
         });
+        toast.success("HSN Code updated successfully");
       } else {
         await hsnService.createHsnCode(payload);
+        toast.success("HSN Code created successfully");
       }
       setIsFormOpen(false);
       resetForm();
@@ -214,6 +217,7 @@ setHsnCodes([]);
       setIsDeleteOpen(false);
       setDeletingRecord(null);
       loadHsnCodes();
+      toast.success("HSN Code deleted successfully");
     } catch (e: any) {
       toast.error(e.message || "Failed to delete HSN code");
     }
@@ -266,6 +270,14 @@ setHsnCodes([]);
     },
   ];
 
+  if (!selectedCompanyId) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-500">Please select a company first.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header section */}
@@ -284,6 +296,9 @@ setHsnCodes([]);
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
+          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("hsn", selectedCompanyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
+            Excel
+          </Button>
           <Button
             onClick={() => {
               resetForm();
@@ -291,7 +306,7 @@ setHsnCodes([]);
             }}
             size="sm"
             leftIcon={<Plus size={14} />}
-            className="btn-primary"
+            className="btn-primary !px-3 !py-1.5"
           >
             Add HSN Code
           </Button>

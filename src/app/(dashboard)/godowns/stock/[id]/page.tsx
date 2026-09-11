@@ -15,7 +15,7 @@ import { saleService } from "@/services/saleService";
 import { purchaseReturnService } from "@/services/purchaseReturnService";
 import { saleReturnService } from "@/services/saleReturnService";
 import { splitCasePcs } from "@/lib/stock";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 interface GodownStockBucket {
   godownId: string;
@@ -33,12 +33,14 @@ interface ItemRecord {
   itemName: string;
   codeBarCode?: string;
   packing?: number;
+  itemSubGroupId?: { _id: string; name: string } | string;
   mrpEntries?: MrpEntry[];
 }
 
 interface ItemRow {
   itemId: string;
   itemName: string;
+  subGroupName: string;
   codeBarCode?: string;
   freshPcs: number;
   freshCase: number;
@@ -52,6 +54,7 @@ interface ItemRow {
 }
 
 interface PurchaseLine {
+  itemId?: string;
   itemName: string;
   godownId?: string;
   caseQty?: number;
@@ -72,6 +75,7 @@ interface PurchaseRow {
   invoiceNo: string;
   invoiceDate: string;
   itemName: string;
+  subGroupName: string;
   caseQty: number;
   pcsQty: number;
   rate: number;
@@ -79,6 +83,7 @@ interface PurchaseRow {
 }
 
 interface SaleLine {
+  itemId?: string;
   itemName: string;
   godownId?: string;
   caseQty?: number;
@@ -101,6 +106,7 @@ interface SaleRow {
   invoiceDate: string;
   customerName: string;
   itemName: string;
+  subGroupName: string;
   caseQty: number;
   pcsQty: number;
   rate: number;
@@ -108,6 +114,7 @@ interface SaleRow {
 }
 
 interface ReturnLine {
+  itemId?: string;
   itemName: string;
   godownId?: string;
   caseQty?: number;
@@ -141,6 +148,7 @@ interface ReturnRow {
   returnDate: string;
   partyName: string;
   itemName: string;
+  subGroupName: string;
   caseQty: number;
   pcsQty: number;
   totalPieces: number;
@@ -189,6 +197,14 @@ export default function GodownStockPage() {
         const godown = godownList.find((g: any) => g._id === godownId);
         setGodownName(godown?.name || "(unknown godown)");
 
+        const itemList: ItemRecord[] = itemRes.data || itemRes || [];
+        // Same item name can legitimately repeat across different Sub Groups (see
+        // CLAUDE.md's Item model note) — every table on this page shows Sub Group
+        // alongside Item Name so two same-named items stay distinguishable.
+        const itemSubGroupMap = new Map<string, string>(
+          itemList.map((i: any) => [i._id, (typeof i.itemSubGroupId === "object" ? i.itemSubGroupId?.name : "") || "-"])
+        );
+
         // Every Purchase line whose own (per-line) godownId matches this godown —
         // a single Purchase can span several godowns across its lines.
         const purchaseList: PurchaseRecord[] = purchaseRes.data || purchaseRes || [];
@@ -201,6 +217,7 @@ export default function GodownStockPage() {
               invoiceNo: p.invoiceNo,
               invoiceDate: p.invoiceDate,
               itemName: line.itemName,
+              subGroupName: (line.itemId && itemSubGroupMap.get(line.itemId)) || "-",
               caseQty: line.caseQty || 0,
               pcsQty: line.pcsQty || 0,
               rate: line.beforeGstRate || 0,
@@ -224,6 +241,7 @@ export default function GodownStockPage() {
               returnDate: pr.returnDate,
               partyName: supplierName || "-",
               itemName: line.itemName,
+              subGroupName: (line.itemId && itemSubGroupMap.get(line.itemId)) || "-",
               caseQty: line.caseQty || 0,
               pcsQty: line.pcsQty || 0,
               totalPieces: line.totalPieces || 0,
@@ -249,6 +267,7 @@ export default function GodownStockPage() {
               returnDate: sr.returnDate,
               partyName: customerName || "-",
               itemName: line.itemName,
+              subGroupName: (line.itemId && itemSubGroupMap.get(line.itemId)) || "-",
               caseQty: line.caseQty || 0,
               pcsQty: line.pcsQty || 0,
               totalPieces: line.totalPieces || 0,
@@ -275,6 +294,7 @@ export default function GodownStockPage() {
               invoiceDate: s.invoiceDate,
               customerName: customerName || "-",
               itemName: line.itemName,
+              subGroupName: (line.itemId && itemSubGroupMap.get(line.itemId)) || "-",
               caseQty: line.caseQty || 0,
               pcsQty: line.pcsQty || 0,
               rate: line.afterGstRate || 0,
@@ -285,7 +305,6 @@ export default function GodownStockPage() {
         builtSaleRows.sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime());
         setSaleRows(builtSaleRows);
 
-        const itemList: ItemRecord[] = itemRes.data || itemRes || [];
         const builtRows: ItemRow[] = [];
         itemList.forEach((item) => {
           const packing = parseFloat(String(item.packing)) || 1;
@@ -307,6 +326,7 @@ export default function GodownStockPage() {
             builtRows.push({
               itemId: item._id,
               itemName: item.itemName,
+              subGroupName: itemSubGroupMap.get(item._id) || "-",
               codeBarCode: item.codeBarCode,
               freshCase: fresh.case,
               freshPcs: fresh.pcs,
@@ -433,6 +453,7 @@ export default function GodownStockPage() {
         <Table
           columns={[
             { key: "item", header: "Item", accessor: (r: ItemRow) => r.itemName, primary: true },
+            { key: "subGroup", header: "Sub Group", accessor: (r: ItemRow) => r.subGroupName },
             { key: "code", header: "Code", accessor: (r: ItemRow) => r.codeBarCode || "-" },
             { key: "freshCase", header: "Fresh Case", align: "right" as const, accessor: (r: ItemRow) => r.freshCase },
             { key: "freshPcs", header: "Fresh Pcs", align: "right" as const, accessor: (r: ItemRow) => r.freshPcs },
@@ -477,6 +498,7 @@ export default function GodownStockPage() {
                     },
                     { key: "date", header: "Date", accessor: (r: PurchaseRow) => (r.invoiceDate ? new Date(r.invoiceDate).toLocaleDateString("en-IN") : "-") },
                     { key: "item", header: "Item", accessor: (r: PurchaseRow) => r.itemName },
+                    { key: "subGroup", header: "Sub Group", accessor: (r: PurchaseRow) => r.subGroupName },
                     { key: "case", header: "Case", align: "right" as const, accessor: (r: PurchaseRow) => r.caseQty },
                     { key: "pcs", header: "Pcs", align: "right" as const, accessor: (r: PurchaseRow) => r.pcsQty },
                     { key: "rate", header: "Rate", align: "right" as const, accessor: (r: PurchaseRow) => `₹${r.rate.toFixed(2)}` },
@@ -512,6 +534,7 @@ export default function GodownStockPage() {
                     { key: "date", header: "Date", accessor: (r: SaleRow) => (r.invoiceDate ? new Date(r.invoiceDate).toLocaleDateString("en-IN") : "-") },
                     { key: "customer", header: "Customer", accessor: (r: SaleRow) => r.customerName },
                     { key: "item", header: "Item", accessor: (r: SaleRow) => r.itemName },
+                    { key: "subGroup", header: "Sub Group", accessor: (r: SaleRow) => r.subGroupName },
                     { key: "case", header: "Case", align: "right" as const, accessor: (r: SaleRow) => r.caseQty },
                     { key: "pcs", header: "Pcs", align: "right" as const, accessor: (r: SaleRow) => r.pcsQty },
                     { key: "rate", header: "Rate", align: "right" as const, accessor: (r: SaleRow) => `₹${r.rate.toFixed(2)}` },
@@ -547,6 +570,7 @@ export default function GodownStockPage() {
                     { key: "date", header: "Date", accessor: (r: ReturnRow) => (r.returnDate ? new Date(r.returnDate).toLocaleDateString("en-IN") : "-") },
                     { key: "supplier", header: "Supplier", accessor: (r: ReturnRow) => r.partyName },
                     { key: "item", header: "Item", accessor: (r: ReturnRow) => r.itemName },
+                    { key: "subGroup", header: "Sub Group", accessor: (r: ReturnRow) => r.subGroupName },
                     { key: "case", header: "Case", align: "right" as const, accessor: (r: ReturnRow) => r.caseQty },
                     { key: "pcs", header: "Pcs", align: "right" as const, accessor: (r: ReturnRow) => r.pcsQty },
                     {
@@ -591,6 +615,7 @@ export default function GodownStockPage() {
                     { key: "date", header: "Date", accessor: (r: ReturnRow) => (r.returnDate ? new Date(r.returnDate).toLocaleDateString("en-IN") : "-") },
                     { key: "customer", header: "Customer", accessor: (r: ReturnRow) => r.partyName },
                     { key: "item", header: "Item", accessor: (r: ReturnRow) => r.itemName },
+                    { key: "subGroup", header: "Sub Group", accessor: (r: ReturnRow) => r.subGroupName },
                     { key: "case", header: "Case", align: "right" as const, accessor: (r: ReturnRow) => r.caseQty },
                     { key: "pcs", header: "Pcs", align: "right" as const, accessor: (r: ReturnRow) => r.pcsQty },
                     {

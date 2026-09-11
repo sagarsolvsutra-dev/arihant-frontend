@@ -18,7 +18,7 @@ import {
   Edit2,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { companyService } from "@/services/companyService";
 import { userService } from "@/services/userService";
 import { Input } from "@/components/ui/Input";

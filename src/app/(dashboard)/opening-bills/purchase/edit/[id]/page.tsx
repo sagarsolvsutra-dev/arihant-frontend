@@ -8,7 +8,7 @@ import { FormToolbar } from "@/components/ui/FormToolbar";
 import { useCompany } from "@/context/CompanyContext";
 import { openingBillService } from "@/services/openingBillService";
 import { supplierService } from "@/services/supplierService";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 export default function EditPurchaseOpeningBillPage() {
   const router = useRouter();

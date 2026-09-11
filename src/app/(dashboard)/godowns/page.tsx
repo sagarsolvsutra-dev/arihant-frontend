@@ -14,7 +14,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { godownService } from "@/services/godownService";
 import { godownGroupService } from "@/services/godownGroupService";
 import { API_ENDPOINTS } from "@/lib/api";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
 
 const EXPORT_TYPES = [
@@ -169,17 +169,19 @@ export default function GodownsPage() {
     setPage(1);
   };
 
-  // No route on this backend actually checks auth (see CLAUDE.md Security
-  // Issues), so a plain new-tab navigation to the export URL is enough — the
-  // browser handles the file download itself from the Content-Disposition header,
-  // no fetch/blob/Authorization-header dance needed.
+  // Real auth now protects every route (see CLAUDE.md Security Issues), and a
+  // plain new-tab navigation can't carry an Authorization header — so the
+  // token rides along as a query param instead (the backend's `protect`
+  // middleware accepts either). The browser still handles the file download
+  // itself from the Content-Disposition header, no fetch/blob dance needed.
   const handleExport = (format: "pdf" | "excel") => {
     if (!companyId) return;
     // No Godown picked → "all" tells the backend to export across every godown
     // in the company (adding its own Godown column to the report) instead of
     // requiring a specific one. Same "all" fallback for Type — no selection
     // exports every transaction type as a combined multi-section report.
-    const url = `${API_ENDPOINTS.GODOWNS}/${exportGodownId || "all"}/export?companyId=${companyId}&type=${exportType || "all"}&format=${format}`;
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const url = `${API_ENDPOINTS.GODOWNS}/${exportGodownId || "all"}/export?companyId=${companyId}&type=${exportType || "all"}&format=${format}${token ? `&token=${encodeURIComponent(token)}` : ""}`;
     window.open(url, "_blank");
   };
 
@@ -229,7 +231,7 @@ export default function GodownsPage() {
           <Button variant="outline" size="sm" onClick={loadRecords} className="px-2.5 hover:bg-gray-50" title="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button onClick={openAdd} size="sm" leftIcon={<Plus size={14} />} className="btn-primary">
+          <Button onClick={openAdd} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
             Add Godown
           </Button>
         </div>
@@ -242,6 +244,7 @@ export default function GodownsPage() {
               value={searchQuery}
               onChange={handleSearchChange}
               placeholder="Search godowns..."
+              className="!py-1.5 !text-xs"
             />
           </div>
 
@@ -256,6 +259,7 @@ export default function GodownsPage() {
                 value={exportGodownId}
                 onChange={setExportGodownId}
                 placeholder="All Godowns"
+                className="!py-1.5 !text-xs"
               />
             </div>
             <div className="w-40">
@@ -265,12 +269,14 @@ export default function GodownsPage() {
                 value={exportType}
                 onChange={setExportType}
                 searchable={false}
+                className="!py-1.5 !text-xs"
               />
             </div>
             <div className="flex gap-2 shrink-0">
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={() => handleExport("pdf")}
                 leftIcon={<FileText size={14} />}
               >
@@ -279,6 +285,7 @@ export default function GodownsPage() {
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={() => handleExport("excel")}
                 leftIcon={<FileSpreadsheet size={14} />}
               >

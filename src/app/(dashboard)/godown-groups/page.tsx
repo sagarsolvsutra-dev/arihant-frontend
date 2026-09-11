@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, AlertCircle, RefreshCw } from "lucide-react";
+import { Plus, AlertCircle, RefreshCw, FileSpreadsheet } from "lucide-react";
 import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
 import { Button } from "@/components/ui/Button";
+import { exportListService } from "@/services/exportListService";
 import { Input } from "@/components/ui/Input";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Table } from "@/components/ui/Table";
@@ -11,7 +12,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { godownGroupService } from "@/services/godownGroupService";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 interface GodownGroupRecord {
   id: string;
@@ -102,8 +103,10 @@ export default function GodownGroupsPage() {
     try {
       if (editingRecord) {
         await godownGroupService.updateGodownGroup(editingRecord.id, payload);
+        toast.success("Godown Group updated successfully");
       } else {
         await godownGroupService.createGodownGroup(payload);
+        toast.success("Godown Group created successfully");
       }
       setIsFormOpen(false);
       resetForm();
@@ -132,6 +135,7 @@ export default function GodownGroupsPage() {
       setIsDeleteOpen(false);
       setDeletingRecord(null);
       loadGodownGroups();
+      toast.success("Godown Group deleted successfully");
     } catch (e: any) {
       toast.error(e.message || "Failed to delete godown group");
     }
@@ -175,6 +179,14 @@ export default function GodownGroupsPage() {
     },
   ];
 
+  if (!selectedCompanyId) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-500">Please select a company first.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -196,6 +208,9 @@ export default function GodownGroupsPage() {
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
+          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("godown-groups", selectedCompanyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
+            Excel
+          </Button>
           <Button
             onClick={() => {
               resetForm();
@@ -203,7 +218,7 @@ export default function GodownGroupsPage() {
             }}
             size="sm"
             leftIcon={<Plus size={14} />}
-            className="btn-primary"
+            className="btn-primary !px-3 !py-1.5"
           >
             Add Godown Group
           </Button>

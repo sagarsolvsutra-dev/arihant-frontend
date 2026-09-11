@@ -26,8 +26,9 @@ async function request<T = any>(
 }
 
 export const purchaseReturnService = {
-  getPurchaseReturns: (companyId: string, page = 1, limit = 10, search = "") => {
-    return request(`${API_ENDPOINTS.PURCHASE_RETURNS}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
+  getPurchaseReturns: (companyId: string, page = 1, limit = 10, search = "", dateFrom = "", dateTo = "") => {
+    const dateParams = `${dateFrom ? `&dateFrom=${dateFrom}` : ""}${dateTo ? `&dateTo=${dateTo}` : ""}`;
+    return request(`${API_ENDPOINTS.PURCHASE_RETURNS}?companyId=${companyId}&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}${dateParams}`);
   },
   getPurchaseReturnById: (id: string) => {
     return request(`${API_ENDPOINTS.PURCHASE_RETURNS}/${id}`);

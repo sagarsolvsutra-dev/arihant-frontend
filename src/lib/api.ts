@@ -44,6 +44,7 @@ export const API_ENDPOINTS = {
   // Inventory
   STOCK: `${API_BASE_URL}/stock`,
   STOCK_TRANSFERS: `${API_BASE_URL}/stock-transfers`,
+  EXPORT_LIST: `${API_BASE_URL}/export-list`,
   STOCK_ADJUSTMENT: `${API_BASE_URL}/stock-adjustment`,
   STOCK_LEDGER: `${API_BASE_URL}/stock-ledger`,
 

@@ -9,7 +9,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { openingBillService } from "@/services/openingBillService";
 import { customerService } from "@/services/customerService";
 import { salesmanService } from "@/services/salesmanService";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 export default function AddSaleOpeningBillPage() {
   const router = useRouter();

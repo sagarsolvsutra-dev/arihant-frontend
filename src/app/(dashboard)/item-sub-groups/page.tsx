@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Search, AlertCircle, RefreshCw } from "lucide-react";
+import { Plus, Search, AlertCircle, RefreshCw, FileSpreadsheet } from "lucide-react";
 import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
 import { Button } from "@/components/ui/Button";
+import { exportListService } from "@/services/exportListService";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -14,6 +15,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { supplierService } from "@/services/supplierService";
 import { itemNameService } from "@/services/itemNameService";
 import { itemSubGroupService } from "@/services/itemSubGroupService";
+import { toast } from "@/lib/toast";
 
 interface ItemSubGroup {
   _id: string;
@@ -170,14 +172,17 @@ export default function ItemSubGroupsPage() {
       };
       if (editingRecord?._id) {
         await itemSubGroupService.updateItemSubGroup(editingRecord._id, payload);
+        toast.success("Item Sub Group updated successfully");
       } else {
         await itemSubGroupService.createItemSubGroup(payload);
+        toast.success("Item Sub Group created successfully");
       }
       setFormOpen(false);
       resetForm();
       loadRecords();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      toast.error(err.message || "Failed to save Item Sub Group");
     } finally {
       setSaving(false);
     }
@@ -188,8 +193,10 @@ export default function ItemSubGroupsPage() {
     try {
       await itemSubGroupService.deleteItemSubGroup(deletingRecord._id);
       loadRecords();
-    } catch (err) {
+      toast.success("Item Sub Group deleted successfully");
+    } catch (err: any) {
       console.error(err);
+      toast.error(err.message || "Failed to delete Item Sub Group");
     } finally {
       setIsDeleteOpen(false);
       setDeletingRecord(null);
@@ -265,7 +272,10 @@ export default function ItemSubGroupsPage() {
           <Button variant="outline" size="sm" onClick={loadRecords} className="px-2.5 hover:bg-gray-50" title="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button onClick={openAdd} size="sm" leftIcon={<Plus size={14} />} className="btn-primary">
+          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("item-sub-groups", companyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
+            Excel
+          </Button>
+          <Button onClick={openAdd} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
             Add Sub Group
           </Button>
         </div>

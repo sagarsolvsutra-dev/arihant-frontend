@@ -10,10 +10,11 @@ import { Table } from "@/components/ui/Table";
 import { FormToolbar } from "@/components/ui/FormToolbar";
 import { useCompany } from "@/context/CompanyContext";
 import { saleReturnService } from "@/services/saleReturnService";
+import { saleService } from "@/services/saleService";
 import { itemService } from "@/services/itemService";
 import { customerService } from "@/services/customerService";
 import { godownService } from "@/services/godownService";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Plus, X, Pencil, Package, Boxes, Search } from "lucide-react";
 
 interface MrpEntry {
@@ -190,6 +191,13 @@ export default function EditSaleReturnPage() {
   // predate the sale it's returning against. Not populated on initial load from the
   // saved record; re-fetch via the button if this needs to be enforced again.
   const [originalInvoiceDate, setOriginalInvoiceDate] = useState("");
+  // Raw line items from the fetched original Sale (not the return's own `lines`),
+  // kept so handleAddLine can check the same "can't return more than was billed"
+  // cap the backend enforces — but at Add Line time, before the line ever joins
+  // the grid, instead of only surfacing after Save. Only populated once "Fetch"
+  // resolves in this session (matches the backend's own "if (original)" guard —
+  // on Edit, re-fetching is required to re-arm this client-side check).
+  const [originalItems, setOriginalItems] = useState<any[]>([]);
   const [notes, setNotes] = useState("");
   const [refundAmount, setRefundAmount] = useState("0");
   const [dueDate, setDueDate] = useState("");
@@ -279,6 +287,20 @@ export default function EditSaleReturnPage() {
       })
       .finally(() => setLoading(false));
   }, [saleReturnId]);
+
+  // A return loaded from a saved record is usually already linked to a real
+  // original Sale (originalSaleId) — the Add-Line-time validation below
+  // shouldn't require the user to click "Fetch" again just to re-arm it.
+  // Loads the original Sale directly by id (not by invoice-number lookup,
+  // which is what the Fetch button uses) as soon as the saved record's own
+  // originalSaleId is known.
+  useEffect(() => {
+    if (!originalSaleId) return;
+    saleService
+      .getSaleById(originalSaleId)
+      .then((original: any) => setOriginalItems(original.items || []))
+      .catch((err: any) => console.error("Failed to load original sale for return-quantity validation", err));
+  }, [originalSaleId]);
 
   const selectedCustomer = customers.find((c) => c._id === customerId) || null;
   const customerType = selectedCustomer?.customerType || "Retailer";
@@ -438,6 +460,27 @@ export default function EditSaleReturnPage() {
       condition,
     };
 
+    // Mirrors saleReturnController.js's validateAgainstOriginal — same key
+    // (itemId|mrp), same "billed" computation from the fetched original Sale's
+    // lines — but checked here, before the line joins the grid, instead of only
+    // surfacing as a Save-time error the user then has to go back and fix.
+    if (originalItems.length > 0) {
+      const key = `${line.itemId}|${line.mrp}`;
+      const originallyBilled = originalItems
+        .filter((o: any) => `${o.itemId}|${o.mrp}` === key)
+        .reduce((sum: number, o: any) => sum + (o.caseQty || 0) * (o.packing || 1) + (o.pcsQty || 0), 0);
+      const alreadyReturning = lines
+        .filter((l) => `${l.itemId}|${l.mrp}` === key)
+        .reduce((sum, l) => sum + l.caseQty * l.packing + l.pcsQty, 0);
+      const returningNow = alreadyReturning + line.caseQty * line.packing + line.pcsQty;
+      if (returningNow > originallyBilled) {
+        toast.error(
+          `Cannot return more than was originally sold for "${line.itemName}" (originally billed: ${originallyBilled} pcs, returning: ${returningNow} pcs)`
+        );
+        return;
+      }
+    }
+
     setLines((prev) => [...prev, line]);
     resetEntryRow();
   };
@@ -478,6 +521,7 @@ export default function EditSaleReturnPage() {
     try {
       const original: any = await saleReturnService.lookupOriginalInvoice(companyId, originalInvoiceNo.trim());
       setOriginalSaleId(original._id);
+      setOriginalItems(original.items || []);
       setCustomerId(typeof original.customerId === "string" ? original.customerId : original.customerId?._id || "");
       setOriginalInvoiceDate(original.invoiceDate ? new Date(original.invoiceDate).toISOString().slice(0, 10) : "");
 
@@ -640,6 +684,15 @@ export default function EditSaleReturnPage() {
   const gridColumns = [
     { key: "idx", header: "#", accessor: (_: Line, i: number) => i + 1 },
     { key: "item", header: "Item Name", accessor: (l: Line) => l.itemName },
+    {
+      key: "subGroup",
+      header: "Sub Group",
+      accessor: (l: Line) => {
+        const item = allItems.find((i) => i._id === l.itemId);
+        const sub = item && typeof item.itemSubGroupId === "object" ? item.itemSubGroupId?.name : "";
+        return sub || "-";
+      },
+    },
     {
       key: "godown",
       header: "Godown",

@@ -1,5 +1,5 @@
 // API Client - Provides typed methods using fetch + API_ENDPOINTS
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { API_ENDPOINTS } from "./api";
 
 function getToken(): string | null {

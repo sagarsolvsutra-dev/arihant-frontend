@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { FormToolbar } from "@/components/ui/FormToolbar";
@@ -13,6 +13,7 @@ import { supplierService } from "@/services/supplierService";
 import { itemNameService } from "@/services/itemNameService";
 import { itemSubGroupService } from "@/services/itemSubGroupService";
 import { hsnService } from "@/services/hsnService";
+import { splitCasePcs } from "@/lib/stock";
 
 // All fields an MRP entry carries — used to detect whether the form fields have
 // actually diverged from the currently selected grid row (not just MRP/rate/discount).
@@ -80,11 +81,15 @@ export default function AddItemPage() {
   const [salesRateWholesaler, setSalesRateWholesaler] = useState("0");
   const [salesRateDistributor, setSalesRateDistributor] = useState("0");
 
-  // Stock fields
+  // Stock fields — Case and Loose Pcs are independent entry fields, exactly like
+  // Purchase/Sale's Case+Pcs (loose pieces on top of full cases, not a total-pieces
+  // value in disguise). The real backend field `openingStock*Pcs` is a pure total
+  // piece count, so it's always derived (case*packing + loosePcs) at submit time —
+  // never typed directly. See openingStockFreshTotalPcs/openingStockDamagedTotalPcs.
   const [openingStockFreshCase, setOpeningStockFreshCase] = useState("0");
-  const [openingStockFreshPcs, setOpeningStockFreshPcs] = useState("0");
+  const [openingStockFreshLoosePcs, setOpeningStockFreshLoosePcs] = useState("0");
   const [openingStockDamagedCase, setOpeningStockDamagedCase] = useState("0");
-  const [openingStockDamagedPcs, setOpeningStockDamagedPcs] = useState("0");
+  const [openingStockDamagedLoosePcs, setOpeningStockDamagedLoosePcs] = useState("0");
   const [lastCostRate, setLastCostRate] = useState("0");
 
   // Calculated fields (Display only)
@@ -142,6 +147,13 @@ export default function AddItemPage() {
     }
   };
 
+  // The real stored field is a pure total piece count — Case/Loose-Pcs are only an
+  // entry convenience, so the total is always derived here, never typed directly.
+  const openingStockFreshTotalPcs =
+    (parseFloat(openingStockFreshCase) || 0) * (parseFloat(packing) || 1) + (parseFloat(openingStockFreshLoosePcs) || 0);
+  const openingStockDamagedTotalPcs =
+    (parseFloat(openingStockDamagedCase) || 0) * (parseFloat(packing) || 1) + (parseFloat(openingStockDamagedLoosePcs) || 0);
+
   const buildEntryFromFields = () => ({
     mrp: parseFloat(mrp) || 0,
     mrpActive,
@@ -171,9 +183,9 @@ export default function AddItemPage() {
     weightPerPiece: parseFloat(weightPerPiece) || 0,
     schemeRemark: schemeRemark.trim(),
     openingStockFreshCase: parseFloat(openingStockFreshCase) || 0,
-    openingStockFreshPcs: parseFloat(openingStockFreshPcs) || 0,
+    openingStockFreshPcs: openingStockFreshTotalPcs,
     openingStockDamagedCase: parseFloat(openingStockDamagedCase) || 0,
-    openingStockDamagedPcs: parseFloat(openingStockDamagedPcs) || 0,
+    openingStockDamagedPcs: openingStockDamagedTotalPcs,
   });
 
   // Only resets the pricing side (MRP/Purchase Rate/Discount/Margins) after a rate is
@@ -269,10 +281,16 @@ export default function AddItemPage() {
     setMinStockQty(String(entry.minStockQty ?? 0));
     setWeightPerPiece(String(entry.weightPerPiece ?? 0));
     setSchemeRemark(entry.schemeRemark ?? "");
-    setOpeningStockFreshCase(String(entry.openingStockFreshCase ?? 0));
-    setOpeningStockFreshPcs(String(entry.openingStockFreshPcs ?? 0));
-    setOpeningStockDamagedCase(String(entry.openingStockDamagedCase ?? 0));
-    setOpeningStockDamagedPcs(String(entry.openingStockDamagedPcs ?? 0));
+    // entry.openingStock*Pcs is a stored TOTAL piece count — split it back into
+    // whole Case + remaining Loose Pcs for display, using the entry's own packing
+    // (not the component's `packing` state, which setPacking above hasn't
+    // committed yet in this same synchronous pass).
+    const freshSplit = splitCasePcs(entry.openingStockFreshPcs ?? 0, entry.packing ?? 1);
+    setOpeningStockFreshCase(String(freshSplit.case));
+    setOpeningStockFreshLoosePcs(String(freshSplit.pcs));
+    const damagedSplit = splitCasePcs(entry.openingStockDamagedPcs ?? 0, entry.packing ?? 1);
+    setOpeningStockDamagedCase(String(damagedSplit.case));
+    setOpeningStockDamagedLoosePcs(String(damagedSplit.pcs));
   };
 
   const handleToggleMrpEntryActive = (index: number) => {
@@ -630,9 +648,9 @@ export default function AddItemPage() {
                   <div className="w-32">
                     <Input type="number" min="0" value={minStockQty} onChange={e => setMinStockQty(e.target.value)} className={`${inputClass} text-right`} />
                   </div>
-                  {parseFloat(minStockQty) > 0 && parseFloat(openingStockFreshPcs || "0") <= parseFloat(minStockQty) && (
+                  {parseFloat(minStockQty) > 0 && openingStockFreshTotalPcs <= parseFloat(minStockQty) && (
                     <span className="mt-1.5 text-xs font-semibold text-red-600 whitespace-nowrap">
-                      Low Stock ({openingStockFreshPcs || 0} Pcs left)
+                      Low Stock ({openingStockFreshTotalPcs} Pcs left)
                     </span>
                   )}
                 </td>
@@ -656,73 +674,53 @@ export default function AddItemPage() {
               <tr>
                 <td className="w-44 align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Opng. Stock - Fresh</td>
                 <td className="flex items-center justify-end gap-2 pr-2">
-                  <span className="font-medium text-gray-600">Qty.</span>
                   <div className="w-16">
                     <Input
                       type="number"
+                      min="0"
                       value={openingStockFreshCase}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setOpeningStockFreshCase(val);
-                        const c = parseFloat(val) || 0;
-                        const p = parseFloat(packing) || 1;
-                        setOpeningStockFreshPcs((c * p).toFixed(0));
-                      }}
+                      onChange={e => setOpeningStockFreshCase(e.target.value)}
                       className={`${inputClass} text-right`}
                     />
                   </div>
-                  <span className="font-medium text-gray-600">Carton</span>
+                  <span className="font-medium text-gray-600">Case</span>
                   <div className="w-16">
                     <Input
                       type="number"
-                      value={openingStockFreshPcs}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setOpeningStockFreshPcs(val);
-                        const pcs = parseFloat(val) || 0;
-                        const p = parseFloat(packing) || 1;
-                        setOpeningStockFreshCase((pcs / p).toFixed(2));
-                      }}
+                      min="0"
+                      value={openingStockFreshLoosePcs}
+                      onChange={e => setOpeningStockFreshLoosePcs(e.target.value)}
                       className={`${inputClass} text-right`}
                     />
                   </div>
                   <span className="font-medium text-gray-600">Pcs</span>
+                  <span className="text-xs text-gray-400 whitespace-nowrap ml-1">= {openingStockFreshTotalPcs} Pcs total</span>
                 </td>
               </tr>
               <tr>
                 <td className="align-top pt-1.5 font-medium text-gray-700 whitespace-nowrap">Opng. Stock - Damaged</td>
                 <td className="flex items-center justify-end gap-2 pr-2">
-                  <span className="font-medium text-gray-600">Qty.</span>
                   <div className="w-16">
                     <Input
                       type="number"
+                      min="0"
                       value={openingStockDamagedCase}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setOpeningStockDamagedCase(val);
-                        const c = parseFloat(val) || 0;
-                        const p = parseFloat(packing) || 1;
-                        setOpeningStockDamagedPcs((c * p).toFixed(0));
-                      }}
+                      onChange={e => setOpeningStockDamagedCase(e.target.value)}
                       className={`${inputClass} text-right`}
                     />
                   </div>
-                  <span className="font-medium text-gray-600">Carton</span>
+                  <span className="font-medium text-gray-600">Case</span>
                   <div className="w-16">
                     <Input
                       type="number"
-                      value={openingStockDamagedPcs}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setOpeningStockDamagedPcs(val);
-                        const pcs = parseFloat(val) || 0;
-                        const p = parseFloat(packing) || 1;
-                        setOpeningStockDamagedCase((pcs / p).toFixed(2));
-                      }}
+                      min="0"
+                      value={openingStockDamagedLoosePcs}
+                      onChange={e => setOpeningStockDamagedLoosePcs(e.target.value)}
                       className={`${inputClass} text-right`}
                     />
                   </div>
                   <span className="font-medium text-gray-600">Pcs</span>
+                  <span className="text-xs text-gray-400 whitespace-nowrap ml-1">= {openingStockDamagedTotalPcs} Pcs total</span>
                 </td>
               </tr>
               <tr>

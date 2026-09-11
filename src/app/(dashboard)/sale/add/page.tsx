@@ -8,12 +8,13 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { Button } from "@/components/ui/Button";
 import { Table } from "@/components/ui/Table";
 import { FormToolbar } from "@/components/ui/FormToolbar";
+import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { saleService } from "@/services/saleService";
 import { itemService } from "@/services/itemService";
 import { customerService } from "@/services/customerService";
 import { godownService } from "@/services/godownService";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Plus, X, Pencil, Package, Boxes } from "lucide-react";
 
 // "YYYY-MM-DD" for today, in local time — used to default required date fields
@@ -95,6 +96,8 @@ interface CustomerRecord {
   address?: string;
   city?: string;
   state?: string;
+  creditLimit?: number;
+  creditDays?: number;
 }
 
 interface Line {
@@ -160,6 +163,9 @@ export default function AddSalePage() {
   // See purchase/add/page.tsx for why this ref exists — blocks a rapid double-click
   // from firing two concurrent saves that could race on the same item's stock update.
   const savingRef = useRef(false);
+  // Non-null message = "over the customer's credit limit, confirm before saving".
+  // A soft warning, not a hard block — see handleSave.
+  const [creditWarning, setCreditWarning] = useState<string | null>(null);
   const [items, setItems] = useState<ItemRecord[]>([]);
   // Unfiltered — see purchase/add/page.tsx for why this exists alongside `items`.
   const [allItems, setAllItems] = useState<ItemRecord[]>([]);
@@ -234,6 +240,18 @@ export default function AddSalePage() {
 
   const selectedCustomer = customers.find((c) => c._id === customerId) || null;
   const customerType = selectedCustomer?.customerType || "Retailer";
+
+  // Defaults Due Date from the customer's own Default Due Days (creditDays) the
+  // moment they're selected — only when Due Date is still blank, so it never
+  // stomps a value the user already picked. 0/unset creditDays means the
+  // customer has no due-date policy configured, so nothing is defaulted.
+  useEffect(() => {
+    if (!selectedCustomer || !selectedCustomer.creditDays || !invoiceDate || dueDate) return;
+    const d = new Date(`${invoiceDate}T00:00:00`);
+    d.setDate(d.getDate() + selectedCustomer.creditDays);
+    setDueDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId]);
 
   // Item Name is unscoped (no supplier-style filter, see quirk #26), so the only way
   // a currently-loaded item can be missing from `items` is deactivation — inject it
@@ -462,6 +480,31 @@ export default function AddSalePage() {
       return;
     }
 
+    // Credit limit is a soft warning, not a hard block — 0/unset means the
+    // customer has no limit configured at all, so nothing to check.
+    if (selectedCustomer && (selectedCustomer.creditLimit || 0) > 0) {
+      try {
+        const status: any = await customerService.getCustomerOutstanding(customerId, companyId);
+        const thisSalePending = totals.netAmount - (parseFloat(receivedAmount) || 0);
+        const projected = (status.outstanding || 0) + thisSalePending;
+        if (projected > selectedCustomer.creditLimit!) {
+          setCreditWarning(
+            `${selectedCustomer.name}'s credit limit is ₹${selectedCustomer.creditLimit!.toFixed(2)}. This sale would bring their outstanding to ₹${projected.toFixed(2)} — over the limit by ₹${(projected - selectedCustomer.creditLimit!).toFixed(2)}. Save this sale anyway?`
+          );
+          return;
+        }
+      } catch (err) {
+        // A failed check shouldn't block a sale the user can otherwise complete —
+        // just skip the warning and proceed.
+        console.error("Credit limit check failed", err);
+      }
+    }
+
+    await performSave();
+  };
+
+  const performSave = async () => {
+    if (!companyId) return;
     savingRef.current = true;
     setSaving(true);
     try {
@@ -529,6 +572,15 @@ export default function AddSalePage() {
   const gridColumns = [
     { key: "idx", header: "#", accessor: (_: Line, i: number) => i + 1 },
     { key: "item", header: "Item Name", accessor: (l: Line) => l.itemName },
+    {
+      key: "subGroup",
+      header: "Sub Group",
+      accessor: (l: Line) => {
+        const item = allItems.find((i) => i._id === l.itemId);
+        const sub = item && typeof item.itemSubGroupId === "object" ? item.itemSubGroupId?.name : "";
+        return sub || "-";
+      },
+    },
     {
       key: "godown",
       header: "Godown",
@@ -976,6 +1028,20 @@ export default function AddSalePage() {
           </div>
         </div>
       </div>
+
+      <ConfirmationDialog
+        isOpen={creditWarning !== null}
+        onClose={() => setCreditWarning(null)}
+        onConfirm={() => {
+          setCreditWarning(null);
+          performSave();
+        }}
+        title="Credit Limit Exceeded"
+        message={creditWarning || ""}
+        confirmText="Save Anyway"
+        cancelText="Cancel"
+        variant="warning"
+      />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, X } from "lucide-react";
 
 export interface DatePickerProps {
   label?: string;
@@ -88,12 +88,18 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       const dropdownHeight = 340;
       const isUp = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
 
+      const dropdownWidth = Math.min(Math.max(rect.width, 260), window.innerWidth);
+      const spaceRight = window.innerWidth - rect.left;
+      const isRightAligned = spaceRight < dropdownWidth && rect.right > dropdownWidth;
+
       setDropdownStyle({
         position: "fixed",
         top: isUp ? "auto" : `${rect.bottom + 4}px`,
         bottom: isUp ? `${window.innerHeight - rect.top + 4}px` : "auto",
-        left: `${rect.left}px`,
-        minWidth: `${Math.max(rect.width, 260)}px`,
+        left: isRightAligned ? "auto" : `${rect.left}px`,
+        right: isRightAligned ? `${window.innerWidth - rect.right}px` : "auto",
+        minWidth: `${dropdownWidth}px`,
+        maxWidth: `${window.innerWidth}px`,
         zIndex: 99999,
       });
     }
@@ -266,7 +272,29 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         <span className={`truncate ${selectedDate ? "text-gray-900 font-medium" : "text-gray-400"}`}>
           {selectedDate ? formatDisplay(value) : placeholder}
         </span>
-        <CalendarIcon className="h-4 w-4 text-gray-400 shrink-0" />
+        {selectedDate ? (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange("");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+                e.preventDefault();
+                onChange("");
+              }
+            }}
+            title="Clear date"
+            className="shrink-0 p-0.5 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 cursor-pointer"
+          >
+            <X className="h-3.5 w-3.5" />
+          </span>
+        ) : (
+          <CalendarIcon className="h-4 w-4 text-gray-400 shrink-0" />
+        )}
       </button>
 
       {isOpen && !disabled && mounted && createPortal(dropdownMenu, document.body)}

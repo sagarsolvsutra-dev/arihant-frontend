@@ -22,7 +22,7 @@ import {
   RotateCcw,
   ArrowLeftRight,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 
@@ -176,7 +176,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         label: "રિપોર્ટ (Reports)",
         englishLabel: "Reports",
         icon: <FileText className="h-5 w-5" />,
-        href: "#",
+        href: "/reports",
       },
     ];
 
@@ -414,7 +414,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       {/* Main Workspace Frame */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-gray-150 flex items-center justify-between px-3 sm:px-6 shrink-0 gap-2">
+        <header className="h-16 bg-white border-b border-gray-150 flex items-center justify-between px-3 sm:px-6 shrink-0 gap-2 sticky top-0 z-30">
           {/* Hamburger (mobile only) + Welcome/Date info */}
           <div className="flex items-center gap-2 min-w-0">
             <button

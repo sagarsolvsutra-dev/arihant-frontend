@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Search, AlertCircle, RefreshCw } from "lucide-react";
+import { Plus, Search, AlertCircle, RefreshCw, FileSpreadsheet } from "lucide-react";
 import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
 import { Button } from "@/components/ui/Button";
+import { exportListService } from "@/services/exportListService";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -13,7 +14,7 @@ import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { itemNameService } from "@/services/itemNameService";
 import { supplierService } from "@/services/supplierService";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 interface ItemNameRecord {
   id: string;
@@ -125,8 +126,10 @@ setRecords([]);
     try {
       if (editingRecord) {
         await itemNameService.updateItemName(editingRecord.id, payload);
+        toast.success("Item Name updated successfully");
       } else {
         await itemNameService.createItemName(payload);
+        toast.success("Item Name created successfully");
       }
       setIsFormOpen(false);
       resetForm();
@@ -157,6 +160,7 @@ setRecords([]);
       setIsDeleteOpen(false);
       setDeletingRecord(null);
       loadRecords();
+      toast.success("Item Name deleted successfully");
     } catch (e: any) {
       toast.error(e.message || "Failed to delete item name");
     }
@@ -219,6 +223,14 @@ setRecords([]);
     },
   ];
 
+  if (!selectedCompanyId) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-500">Please select a company first.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -240,6 +252,9 @@ setRecords([]);
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
+          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("item-names", selectedCompanyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
+            Excel
+          </Button>
           <Button
             onClick={() => {
               resetForm();
@@ -247,7 +262,7 @@ setRecords([]);
             }}
             size="sm"
             leftIcon={<Plus size={14} />}
-            className="btn-primary"
+            className="btn-primary !px-3 !py-1.5"
           >
             Add Item Name
           </Button>

@@ -12,7 +12,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { stockTransferService } from "@/services/stockTransferService";
 import { itemService } from "@/services/itemService";
 import { godownService } from "@/services/godownService";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Plus, X, Pencil, Package, Boxes } from "lucide-react";
 
 // "YYYY-MM-DD" for today, in local time — used to default required date fields
@@ -325,6 +325,15 @@ export default function AddStockTransferPage() {
   const gridColumns = [
     { key: "idx", header: "#", accessor: (_: Line, i: number) => i + 1 },
     { key: "item", header: "Item Name", accessor: (l: Line) => l.itemName },
+    {
+      key: "subGroup",
+      header: "Sub Group",
+      accessor: (l: Line) => {
+        const item = allItems.find((i) => i._id === l.itemId);
+        const sub = item && typeof item.itemSubGroupId === "object" ? item.itemSubGroupId?.name : "";
+        return sub || "-";
+      },
+    },
     { key: "mrp", header: "MRP Rs", align: "right" as const, accessor: (l: Line) => l.mrp.toFixed(2) },
     { key: "case", header: "Case", align: "right" as const, accessor: (l: Line) => l.caseQty },
     { key: "pcs", header: "Pcs", align: "right" as const, accessor: (l: Line) => l.pcsQty },

@@ -14,7 +14,7 @@ import { saleService } from "@/services/saleService";
 import { purchaseReturnService } from "@/services/purchaseReturnService";
 import { saleReturnService } from "@/services/saleReturnService";
 import { splitCasePcs } from "@/lib/stock";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 interface GodownStockBucket {
   godownId: string;

@@ -12,7 +12,7 @@ import { purchaseService } from "@/services/purchaseService";
 import { purchaseReturnService } from "@/services/purchaseReturnService";
 import { supplierService } from "@/services/supplierService";
 import { splitCasePcs } from "@/lib/stock";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 interface PurchaseLine {
   itemId: string;
@@ -38,6 +38,7 @@ interface LineRow {
   invoiceNo: string;
   invoiceDate: string;
   itemName: string;
+  subGroupName: string;
   caseQty: number;
   pcsQty: number;
   totalPieces: number;
@@ -47,6 +48,7 @@ interface LineRow {
 
 interface ItemSummaryRow {
   itemName: string;
+  subGroupName: string;
   totalCase: number;
   totalPcs: number;
   totalTaxableValue: number;
@@ -54,6 +56,7 @@ interface ItemSummaryRow {
 }
 
 interface PurchaseReturnLine {
+  itemId?: string;
   itemName: string;
   caseQty?: number;
   pcsQty?: number;
@@ -74,6 +77,7 @@ interface ReturnLineRow {
   returnNo: string;
   returnDate: string;
   itemName: string;
+  subGroupName: string;
   caseQty: number;
   pcsQty: number;
   rate: number;
@@ -106,6 +110,17 @@ export default function SupplierPurchaseHistoryPage() {
       .then(([supplierRes, itemRes, purchaseRes, purchaseReturnRes]: [any, any, any, any]) => {
         setSupplierName(supplierRes?.name || "(unknown supplier)");
 
+        // Purchase records don't carry supplierId directly — a "purchase from this
+        // supplier" is derived by joining through Item.supplierId, since Supplier is
+        // the item's principal/brand, not a field on Purchase itself (see CLAUDE.md).
+        const itemList = itemRes.data || itemRes || [];
+        // Same item name can legitimately repeat across different Sub Groups (see
+        // CLAUDE.md's Item model note) — every table on this page shows Sub Group
+        // alongside Item Name so two same-named items stay distinguishable.
+        const itemSubGroupMap = new Map<string, string>(
+          itemList.map((i: any) => [i._id, (typeof i.itemSubGroupId === "object" ? i.itemSubGroupId?.name : "") || "-"])
+        );
+
         // Unlike Purchase, PurchaseReturn.supplierId IS a real, persisted field —
         // no join through Item is needed, just a direct filter.
         const returnList: PurchaseReturnRecord[] = purchaseReturnRes.data || purchaseReturnRes || [];
@@ -119,6 +134,7 @@ export default function SupplierPurchaseHistoryPage() {
               returnNo: pr.returnNo,
               returnDate: pr.returnDate,
               itemName: line.itemName,
+              subGroupName: (line.itemId && itemSubGroupMap.get(line.itemId)) || "-",
               caseQty: line.caseQty || 0,
               pcsQty: line.pcsQty || 0,
               rate: line.beforeGstRate || 0,
@@ -128,11 +144,6 @@ export default function SupplierPurchaseHistoryPage() {
         });
         returnLines.sort((a, b) => new Date(b.returnDate).getTime() - new Date(a.returnDate).getTime());
         setReturnLineRows(returnLines);
-
-        // Purchase records don't carry supplierId directly — a "purchase from this
-        // supplier" is derived by joining through Item.supplierId, since Supplier is
-        // the item's principal/brand, not a field on Purchase itself (see CLAUDE.md).
-        const itemList = itemRes.data || itemRes || [];
         const supplierItemIds = new Set(
           itemList
             .filter((i: any) => (typeof i.supplierId === "object" ? i.supplierId?._id : i.supplierId) === supplierId)
@@ -146,7 +157,7 @@ export default function SupplierPurchaseHistoryPage() {
 
         const purchaseList: PurchaseRecord[] = purchaseRes.data || purchaseRes || [];
         const lines: LineRow[] = [];
-        const summaryPiecesMap = new Map<string, { itemName: string; totalPieces: number; totalTaxableValue: number; totalNetValue: number }>();
+        const summaryPiecesMap = new Map<string, { itemName: string; subGroupName: string; totalPieces: number; totalTaxableValue: number; totalNetValue: number }>();
         // pendingAmount is header-level on Purchase, not per-line — count each matching
         // invoice's pendingAmount exactly once, even if it has multiple lines for this supplier.
         const countedPurchaseIds = new Set<string>();
@@ -170,6 +181,7 @@ export default function SupplierPurchaseHistoryPage() {
               invoiceNo: p.invoiceNo,
               invoiceDate: p.invoiceDate,
               itemName: line.itemName,
+              subGroupName: itemSubGroupMap.get(line.itemId) || "-",
               caseQty,
               pcsQty,
               totalPieces,
@@ -179,6 +191,7 @@ export default function SupplierPurchaseHistoryPage() {
 
             const existing = summaryPiecesMap.get(line.itemId) || {
               itemName: line.itemName,
+              subGroupName: itemSubGroupMap.get(line.itemId) || "-",
               totalPieces: 0,
               totalTaxableValue: 0,
               totalNetValue: 0,
@@ -197,6 +210,7 @@ export default function SupplierPurchaseHistoryPage() {
             const split = splitCasePcs(v.totalPieces, itemPackingMap.get(itemId) || 1);
             return {
               itemName: v.itemName,
+              subGroupName: v.subGroupName,
               totalCase: split.case,
               totalPcs: split.pcs,
               totalTaxableValue: v.totalTaxableValue,
@@ -270,6 +284,7 @@ export default function SupplierPurchaseHistoryPage() {
         <Table
           columns={[
             { key: "item", header: "Item", accessor: (r: ItemSummaryRow) => r.itemName, primary: true },
+            { key: "subGroup", header: "Sub Group", accessor: (r: ItemSummaryRow) => r.subGroupName },
             { key: "case", header: "Total Case", align: "right" as const, accessor: (r: ItemSummaryRow) => r.totalCase },
             { key: "pcs", header: "Total Pcs (loose)", align: "right" as const, accessor: (r: ItemSummaryRow) => r.totalPcs },
             { key: "taxable", header: "Taxable Value", align: "right" as const, accessor: (r: ItemSummaryRow) => `₹${r.totalTaxableValue.toFixed(2)}` },
@@ -307,6 +322,7 @@ export default function SupplierPurchaseHistoryPage() {
                     },
                     { key: "date", header: "Date", accessor: (r: LineRow) => (r.invoiceDate ? new Date(r.invoiceDate).toLocaleDateString("en-IN") : "-") },
                     { key: "item", header: "Item", accessor: (r: LineRow) => r.itemName },
+                    { key: "subGroup", header: "Sub Group", accessor: (r: LineRow) => r.subGroupName },
                     { key: "case", header: "Case", align: "right" as const, accessor: (r: LineRow) => r.caseQty },
                     { key: "pcs", header: "Pcs", align: "right" as const, accessor: (r: LineRow) => r.pcsQty },
                     { key: "rate", header: "Rate", align: "right" as const, accessor: (r: LineRow) => `₹${r.rate.toFixed(2)}` },
@@ -341,6 +357,7 @@ export default function SupplierPurchaseHistoryPage() {
                     },
                     { key: "date", header: "Date", accessor: (r: ReturnLineRow) => (r.returnDate ? new Date(r.returnDate).toLocaleDateString("en-IN") : "-") },
                     { key: "item", header: "Item", accessor: (r: ReturnLineRow) => r.itemName },
+                    { key: "subGroup", header: "Sub Group", accessor: (r: ReturnLineRow) => r.subGroupName },
                     { key: "case", header: "Case", align: "right" as const, accessor: (r: ReturnLineRow) => r.caseQty },
                     { key: "pcs", header: "Pcs", align: "right" as const, accessor: (r: ReturnLineRow) => r.pcsQty },
                     { key: "rate", header: "Rate", align: "right" as const, accessor: (r: ReturnLineRow) => `₹${r.rate.toFixed(2)}` },

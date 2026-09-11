@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
-import { Plus, Search, RefreshCw } from "lucide-react";
+import { EditButton, DeleteButton, LedgerButton } from "@/components/ui/ActionButtons";
+import { Plus, Search, RefreshCw, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { exportListService } from "@/services/exportListService";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Table } from "@/components/ui/Table";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
@@ -112,6 +113,7 @@ export default function SuppliersPage() {
       header: "Actions",
       accessor: (r: SupplierRecord) => (
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+          <LedgerButton onClick={() => router.push(`/suppliers/ledger/${r._id}`)} />
           <EditButton onClick={() => router.push(`/suppliers/edit/${r._id}`)} />
           <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
         </div>
@@ -138,7 +140,10 @@ export default function SuppliersPage() {
           <Button variant="outline" size="sm" onClick={loadRecords} className="px-2.5 hover:bg-gray-50" title="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button onClick={() => router.push("/suppliers/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary">
+          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("suppliers", companyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
+            Excel
+          </Button>
+          <Button onClick={() => router.push("/suppliers/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
             Add Supplier
           </Button>
         </div>

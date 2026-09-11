@@ -32,6 +32,9 @@ export const customerService = {
   getCustomerById: (id: string) => {
     return request(`${API_ENDPOINTS.CUSTOMERS}/${id}`);
   },
+  getCustomerOutstanding: (id: string, companyId: string) => {
+    return request(`${API_ENDPOINTS.CUSTOMERS}/${id}/outstanding?companyId=${companyId}`);
+  },
   createCustomer: (payload: any) => {
     return request(API_ENDPOINTS.CUSTOMERS, {
       method: "POST",

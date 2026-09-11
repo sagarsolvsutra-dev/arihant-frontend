@@ -13,7 +13,7 @@ import { purchaseReturnService } from "@/services/purchaseReturnService";
 import { itemService } from "@/services/itemService";
 import { supplierService } from "@/services/supplierService";
 import { godownService } from "@/services/godownService";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Plus, X, Pencil, Package, Boxes, Search } from "lucide-react";
 
 // "YYYY-MM-DD" for today, in local time — used to default required date fields
@@ -174,6 +174,11 @@ export default function AddPurchaseReturnPage() {
   // Set once an original invoice is fetched — a return can't predate the purchase
   // it's returning against. "YYYY-MM-DD", same shape DatePicker's minDate expects.
   const [originalInvoiceDate, setOriginalInvoiceDate] = useState("");
+  // Raw line items from the fetched original Purchase (not the return's own
+  // `lines`), kept so handleAddLine can check the same "can't return more than
+  // was billed" cap the backend enforces — but at Add Line time, before the
+  // line ever joins the grid, instead of only surfacing after Save.
+  const [originalItems, setOriginalItems] = useState<any[]>([]);
   const [notes, setNotes] = useState("");
   const [refundAmount, setRefundAmount] = useState("0");
   const [dueDate, setDueDate] = useState("");
@@ -365,6 +370,28 @@ export default function AddPurchaseReturnPage() {
       condition,
     };
 
+    // Mirrors purchaseReturnController.js's validateAgainstOriginal — same key
+    // (itemId|mrp), same "billed" computation from the fetched original
+    // Purchase's lines — but checked here, before the line joins the grid,
+    // instead of only surfacing as a Save-time error the user then has to go
+    // back and fix.
+    if (originalItems.length > 0) {
+      const key = `${line.itemId}|${line.mrp}`;
+      const originallyBilled = originalItems
+        .filter((o: any) => `${o.itemId}|${o.mrp}` === key)
+        .reduce((sum: number, o: any) => sum + (o.caseQty || 0) * (o.packing || 1) + (o.pcsQty || 0), 0);
+      const alreadyReturning = lines
+        .filter((l) => `${l.itemId}|${l.mrp}` === key)
+        .reduce((sum, l) => sum + l.caseQty * l.packing + l.pcsQty, 0);
+      const returningNow = alreadyReturning + line.caseQty * line.packing + line.pcsQty;
+      if (returningNow > originallyBilled) {
+        toast.error(
+          `Cannot return more than was originally purchased for "${line.itemName}" (originally billed: ${originallyBilled} pcs, returning: ${returningNow} pcs)`
+        );
+        return;
+      }
+    }
+
     setLines((prev) => [...prev, line]);
     resetEntryRow();
   };
@@ -414,6 +441,7 @@ export default function AddPurchaseReturnPage() {
     try {
       const original: any = await purchaseReturnService.lookupOriginalInvoice(companyId, originalInvoiceNo.trim());
       setOriginalPurchaseId(original._id);
+      setOriginalItems(original.items || []);
       setOriginalInvoiceDate(original.invoiceDate ? new Date(original.invoiceDate).toISOString().slice(0, 10) : "");
 
       const firstItemId = original.items?.[0]?.itemId;
@@ -563,6 +591,15 @@ export default function AddPurchaseReturnPage() {
   const gridColumns = [
     { key: "idx", header: "#", accessor: (_: Line, i: number) => i + 1 },
     { key: "item", header: "Item Name", accessor: (l: Line) => l.itemName },
+    {
+      key: "subGroup",
+      header: "Sub Group",
+      accessor: (l: Line) => {
+        const item = allItems.find((i) => i._id === l.itemId);
+        const sub = item && typeof item.itemSubGroupId === "object" ? item.itemSubGroupId?.name : "";
+        return sub || "-";
+      },
+    },
     {
       key: "godown",
       header: "Godown",

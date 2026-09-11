@@ -9,7 +9,7 @@ import { Save, X, Plus, Edit, List } from "lucide-react";
 import { FormToolbar } from "@/components/ui/FormToolbar";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 const FieldRow = ({ label, children, required }: any) => (
   <div className="flex items-center text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50/50 min-h-[44px]">

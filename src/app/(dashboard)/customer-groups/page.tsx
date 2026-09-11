@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Search, AlertCircle, RefreshCw } from "lucide-react";
+import { Plus, Search, AlertCircle, RefreshCw, FileSpreadsheet } from "lucide-react";
 import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
 import { Button } from "@/components/ui/Button";
+import { exportListService } from "@/services/exportListService";
 import { Input } from "@/components/ui/Input";
 import { Table } from "@/components/ui/Table";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -11,7 +12,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { customerGroupService } from "@/services/customerGroupService";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 interface CustomerGroupRecord {
   id: string;
@@ -108,8 +109,10 @@ setGroups([]);
     try {
       if (editingRecord) {
         await customerGroupService.updateCustomerGroup(editingRecord.id, payload);
+        toast.success("Customer Group updated successfully");
       } else {
         await customerGroupService.createCustomerGroup(payload);
+        toast.success("Customer Group created successfully");
       }
       setIsFormOpen(false);
       resetForm();
@@ -139,6 +142,7 @@ setGroups([]);
       setIsDeleteOpen(false);
       setDeletingRecord(null);
       loadCustomerGroups();
+      toast.success("Customer Group deleted successfully");
     } catch (e: any) {
       toast.error(e.message || "Failed to delete customer group");
     }
@@ -189,6 +193,14 @@ setGroups([]);
     },
   ];
 
+  if (!selectedCompanyId) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-500">Please select a company first.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header section */}
@@ -211,6 +223,9 @@ setGroups([]);
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
+          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("customer-groups", selectedCompanyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
+            Excel
+          </Button>
           <Button
             onClick={() => {
               resetForm();
@@ -218,7 +233,7 @@ setGroups([]);
             }}
             size="sm"
             leftIcon={<Plus size={14} />}
-            className="btn-primary"
+            className="btn-primary !px-3 !py-1.5"
           >
             Add Customer Group
           </Button>

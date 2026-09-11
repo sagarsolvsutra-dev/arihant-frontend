@@ -10,10 +10,11 @@ import { Table } from "@/components/ui/Table";
 import { FormToolbar } from "@/components/ui/FormToolbar";
 import { useCompany } from "@/context/CompanyContext";
 import { purchaseReturnService } from "@/services/purchaseReturnService";
+import { purchaseService } from "@/services/purchaseService";
 import { itemService } from "@/services/itemService";
 import { supplierService } from "@/services/supplierService";
 import { godownService } from "@/services/godownService";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Plus, X, Pencil, Package, Boxes, Search } from "lucide-react";
 
 interface MrpEntry {
@@ -177,6 +178,14 @@ export default function EditPurchaseReturnPage() {
   // predate the purchase it's returning against. Not populated on initial load from
   // the saved record; re-fetch via the button if this needs to be enforced again.
   const [originalInvoiceDate, setOriginalInvoiceDate] = useState("");
+  // Raw line items from the fetched original Purchase (not the return's own
+  // `lines`), kept so handleAddLine can check the same "can't return more than
+  // was billed" cap the backend enforces — but at Add Line time, before the
+  // line ever joins the grid, instead of only surfacing after Save. Only
+  // populated once "Fetch" resolves in this session (matches the backend's own
+  // "if (original)" guard — on Edit, re-fetching is required to re-arm this
+  // client-side check).
+  const [originalItems, setOriginalItems] = useState<any[]>([]);
   const [notes, setNotes] = useState("");
   const [refundAmount, setRefundAmount] = useState("0");
   const [dueDate, setDueDate] = useState("");
@@ -266,6 +275,20 @@ export default function EditPurchaseReturnPage() {
       })
       .finally(() => setLoading(false));
   }, [purchaseReturnId]);
+
+  // A return loaded from a saved record is usually already linked to a real
+  // original Purchase (originalPurchaseId) — the Add-Line-time validation
+  // below shouldn't require the user to click "Fetch" again just to re-arm
+  // it. Loads the original Purchase directly by id (not by invoice-number
+  // lookup, which is what the Fetch button uses) as soon as the saved
+  // record's own originalPurchaseId is known.
+  useEffect(() => {
+    if (!originalPurchaseId) return;
+    purchaseService
+      .getPurchaseById(originalPurchaseId)
+      .then((original: any) => setOriginalItems(original.items || []))
+      .catch((err: any) => console.error("Failed to load original purchase for return-quantity validation", err));
+  }, [originalPurchaseId]);
 
   const itemsForSupplier = supplierId
     ? items.filter((i) => (typeof i.supplierId === "string" ? i.supplierId : i.supplierId?._id) === supplierId)
@@ -415,6 +438,28 @@ export default function EditPurchaseReturnPage() {
       condition,
     };
 
+    // Mirrors purchaseReturnController.js's validateAgainstOriginal — same key
+    // (itemId|mrp), same "billed" computation from the fetched original
+    // Purchase's lines — but checked here, before the line joins the grid,
+    // instead of only surfacing as a Save-time error the user then has to go
+    // back and fix.
+    if (originalItems.length > 0) {
+      const key = `${line.itemId}|${line.mrp}`;
+      const originallyBilled = originalItems
+        .filter((o: any) => `${o.itemId}|${o.mrp}` === key)
+        .reduce((sum: number, o: any) => sum + (o.caseQty || 0) * (o.packing || 1) + (o.pcsQty || 0), 0);
+      const alreadyReturning = lines
+        .filter((l) => `${l.itemId}|${l.mrp}` === key)
+        .reduce((sum, l) => sum + l.caseQty * l.packing + l.pcsQty, 0);
+      const returningNow = alreadyReturning + line.caseQty * line.packing + line.pcsQty;
+      if (returningNow > originallyBilled) {
+        toast.error(
+          `Cannot return more than was originally purchased for "${line.itemName}" (originally billed: ${originallyBilled} pcs, returning: ${returningNow} pcs)`
+        );
+        return;
+      }
+    }
+
     setLines((prev) => [...prev, line]);
     resetEntryRow();
   };
@@ -459,6 +504,7 @@ export default function EditPurchaseReturnPage() {
     try {
       const original: any = await purchaseReturnService.lookupOriginalInvoice(companyId, originalInvoiceNo.trim());
       setOriginalPurchaseId(original._id);
+      setOriginalItems(original.items || []);
       setOriginalInvoiceDate(original.invoiceDate ? new Date(original.invoiceDate).toISOString().slice(0, 10) : "");
 
       const firstItemId = original.items?.[0]?.itemId;
@@ -615,6 +661,15 @@ export default function EditPurchaseReturnPage() {
   const gridColumns = [
     { key: "idx", header: "#", accessor: (_: Line, i: number) => i + 1 },
     { key: "item", header: "Item Name", accessor: (l: Line) => l.itemName },
+    {
+      key: "subGroup",
+      header: "Sub Group",
+      accessor: (l: Line) => {
+        const item = allItems.find((i) => i._id === l.itemId);
+        const sub = item && typeof item.itemSubGroupId === "object" ? item.itemSubGroupId?.name : "";
+        return sub || "-";
+      },
+    },
     {
       key: "godown",
       header: "Godown",

@@ -8,12 +8,13 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { Button } from "@/components/ui/Button";
 import { Table } from "@/components/ui/Table";
 import { FormToolbar } from "@/components/ui/FormToolbar";
+import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { saleService } from "@/services/saleService";
 import { itemService } from "@/services/itemService";
 import { customerService } from "@/services/customerService";
 import { godownService } from "@/services/godownService";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Plus, X, Pencil, Package, Boxes } from "lucide-react";
 
 interface MrpEntry {
@@ -70,6 +71,8 @@ interface CustomerRecord {
   address?: string;
   city?: string;
   state?: string;
+  creditLimit?: number;
+  creditDays?: number;
 }
 
 interface Line {
@@ -163,6 +166,13 @@ export default function EditSalePage() {
   // See purchase/add/page.tsx for why this ref exists — blocks a rapid double-click
   // from firing two concurrent saves that could race on the same item's stock update.
   const savingRef = useRef(false);
+  // This sale's own pendingAmount as loaded from the server — the customer's fetched
+  // outstanding total already includes it, so the credit-limit check below has to
+  // subtract it back out before adding the new (about-to-be-saved) pending amount,
+  // or every edit of an already-pending sale would double-count itself.
+  const originalPendingAmountRef = useRef(0);
+  // Non-null message = "over the customer's credit limit, confirm before saving".
+  const [creditWarning, setCreditWarning] = useState<string | null>(null);
   const [items, setItems] = useState<ItemRecord[]>([]);
   // Unfiltered — see purchase/add/page.tsx for why this exists alongside `items`.
   const [allItems, setAllItems] = useState<ItemRecord[]>([]);
@@ -230,6 +240,7 @@ export default function EditSalePage() {
         setNotes(s.notes || "");
         setReceivedAmount(String(s.receivedAmount ?? 0));
         setDueDate(toDateInputValue(s.dueDate));
+        originalPendingAmountRef.current = s.pendingAmount || 0;
         setLines(
           (s.items || []).map((it: any, idx: number) => ({
             key: `${it.itemId}-${idx}`,
@@ -489,6 +500,31 @@ export default function EditSalePage() {
       return;
     }
 
+    // Credit limit is a soft warning, not a hard block — 0/unset means the
+    // customer has no limit configured at all, so nothing to check. The fetched
+    // outstanding total already includes this sale's own current pendingAmount,
+    // so it's subtracted back out before adding what this edit would leave pending.
+    if (selectedCustomer && (selectedCustomer.creditLimit || 0) > 0) {
+      try {
+        const status: any = await customerService.getCustomerOutstanding(customerId, companyId);
+        const thisSalePending = totals.netAmount - (parseFloat(receivedAmount) || 0);
+        const projected = (status.outstanding || 0) - originalPendingAmountRef.current + thisSalePending;
+        if (projected > selectedCustomer.creditLimit!) {
+          setCreditWarning(
+            `${selectedCustomer.name}'s credit limit is ₹${selectedCustomer.creditLimit!.toFixed(2)}. This sale would bring their outstanding to ₹${projected.toFixed(2)} — over the limit by ₹${(projected - selectedCustomer.creditLimit!).toFixed(2)}. Save this sale anyway?`
+          );
+          return;
+        }
+      } catch (err) {
+        console.error("Credit limit check failed", err);
+      }
+    }
+
+    await performSave();
+  };
+
+  const performSave = async () => {
+    if (!companyId) return;
     savingRef.current = true;
     setSaving(true);
     try {
@@ -563,6 +599,15 @@ export default function EditSalePage() {
   const gridColumns = [
     { key: "idx", header: "#", accessor: (_: Line, i: number) => i + 1 },
     { key: "item", header: "Item Name", accessor: (l: Line) => l.itemName },
+    {
+      key: "subGroup",
+      header: "Sub Group",
+      accessor: (l: Line) => {
+        const item = allItems.find((i) => i._id === l.itemId);
+        const sub = item && typeof item.itemSubGroupId === "object" ? item.itemSubGroupId?.name : "";
+        return sub || "-";
+      },
+    },
     {
       key: "godown",
       header: "Godown",
@@ -1010,6 +1055,20 @@ export default function EditSalePage() {
           </div>
         </div>
       </div>
+
+      <ConfirmationDialog
+        isOpen={creditWarning !== null}
+        onClose={() => setCreditWarning(null)}
+        onConfirm={() => {
+          setCreditWarning(null);
+          performSave();
+        }}
+        title="Credit Limit Exceeded"
+        message={creditWarning || ""}
+        confirmText="Save Anyway"
+        cancelText="Cancel"
+        variant="warning"
+      />
     </div>
   );
 }
