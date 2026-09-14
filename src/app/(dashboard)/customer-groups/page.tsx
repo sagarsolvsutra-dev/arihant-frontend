@@ -166,19 +166,19 @@ setGroups([]);
       key: "srno",
       header: "SR. NO.",
       accessor: (row: CustomerGroupRecord, index: number) => index + 1,
-      className: "w-20 text-center font-semibold text-gray-500",
+      className: "w-[8%] text-center font-semibold text-gray-500",
     },
     {
       key: "name",
       header: "GROUP NAME",
       accessor: (row: CustomerGroupRecord) => row.name,
-      className: "font-semibold text-gray-900",
+      className: "w-[55%] font-semibold text-gray-900",
     },
     {
       key: "zoneNo",
       header: "ZONE NO.",
       accessor: (row: CustomerGroupRecord) => row.zoneNo || "-",
-      className: "text-gray-600",
+      className: "w-[17%] text-gray-600",
     },
     {
       key: "actions",
@@ -189,7 +189,7 @@ setGroups([]);
           <DeleteButton onClick={() => handleDeleteClick(row)} />
         </div>
       ),
-      className: "w-24 text-center",
+      className: "w-[20%] text-center",
     },
   ];
 

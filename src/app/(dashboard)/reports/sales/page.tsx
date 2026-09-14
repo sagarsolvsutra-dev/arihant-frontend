@@ -14,6 +14,7 @@ import { itemService } from "@/services/itemService";
 import { godownService } from "@/services/godownService";
 import { customerService } from "@/services/customerService";
 import { toast } from "@/lib/toast";
+import { formatDate } from "@/lib/date";
 
 interface SaleReportLine {
   recordId: string;
@@ -103,7 +104,7 @@ export default function SaleReportPage() {
           {r.invoiceNo}
         </button>
       ) },
-    { key: "invoiceDate", header: "Date", render: (r) => new Date(r.invoiceDate).toLocaleDateString("en-IN") },
+    { key: "invoiceDate", header: "Date", render: (r) => formatDate(r.invoiceDate) },
     { key: "customerName", header: "Customer", render: (r) => r.customerName || "-" },
     { key: "itemName", header: "Item", render: (r) => r.itemName },
     { key: "subGroupName", header: "Sub Group", render: (r) => r.subGroupName || "-" },

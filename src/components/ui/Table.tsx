@@ -120,7 +120,7 @@ export function Table<T = any>({
                   {columns.map((column, colIndex) => (
                     <td
                       key={`${String(getRowKey(row, rowIndex))}-${column.key || colIndex}`}
-                      className={`px-4 py-3 border-r border-gray-200 last:border-r-0 text-${column.align || "left"} text-gray-800 ${
+                      className={`px-4 py-3 border-r border-gray-200 last:border-r-0 align-middle text-${column.align || "left"} text-gray-800 ${
                         (column as any).className || ""
                       }`}
                     >

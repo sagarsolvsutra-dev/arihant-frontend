@@ -15,6 +15,7 @@ import { godownService } from "@/services/godownService";
 import { itemService } from "@/services/itemService";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
+import { formatDate } from "@/lib/date";
 
 interface StockTransferRecord {
   _id: string;
@@ -125,7 +126,7 @@ export default function StockTransferListPage() {
     {
       key: "transferDate",
       header: "Date",
-      accessor: (r: StockTransferRecord) => (r.transferDate ? new Date(r.transferDate).toLocaleDateString("en-IN") : "-"),
+      accessor: (r: StockTransferRecord) => formatDate(r.transferDate),
     },
     { key: "fromGodown", header: "From Godown", accessor: (r: StockTransferRecord) => godownName(r.fromGodownId) },
     { key: "toGodown", header: "To Godown", accessor: (r: StockTransferRecord) => godownName(r.toGodownId) },

@@ -19,6 +19,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "@/lib/toast";
+import { formatDate } from "@/lib/date";
 import { companyService } from "@/services/companyService";
 import { userService } from "@/services/userService";
 import { Input } from "@/components/ui/Input";
@@ -54,7 +55,25 @@ type CompanyAdmin = {
   companyId?: string;
   isActive?: boolean;
   password?: string;
+  createdAt?: string;
 };
+
+// A company can end up with more than one company_admin row (a re-signup, an
+// old test account never cleaned up, etc.) — pick the one that actually
+// represents this company's real admin: only ACTIVE candidates count (an
+// admin removed via "Remove Admin" below is soft-deactivated, not deleted,
+// and must stop being treated as "the" admin once that happens — a company
+// with only inactive company_admin rows shows as having no admin at all,
+// same as a company with none), and among ties the OLDEST (first-created)
+// wins, not whichever duplicate happened to be created most recently.
+function pickAdminForCompany(admins: CompanyAdmin[], companyId: string): CompanyAdmin | null {
+  const candidates = admins.filter((a) => a.companyId === companyId && a.isActive);
+  if (!candidates.length) return null;
+  const sorted = [...candidates].sort(
+    (a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+  );
+  return sorted[0];
+}
 
 type DialogMode = "create" | "edit" | null;
 type ViewMode = "table";
@@ -69,6 +88,7 @@ const initialForm = {
   email: "",
   gstNo: "",
   panNo: "",
+  isActive: true,
   adminName: "",
   adminEmail: "",
   adminPhone: "",
@@ -111,7 +131,10 @@ export default function CompaniesPage() {
   const fetchAdmins = async () => {
     try {
       const res = await userService.getUsers();
-      const companyAdmins = (res.users || []).filter(
+      // GET /api/users returns a bare array, not `{users: [...]}` (see
+      // CLAUDE.md's route table) — `res` IS the list already.
+      const allUsers: any[] = Array.isArray(res) ? res : res.users || [];
+      const companyAdmins = allUsers.filter(
         (u: any) => u.role === "company_admin"
       );
       // Normalize companyId to string
@@ -185,35 +208,26 @@ export default function CompaniesPage() {
   };
 
   const openEdit = async (company: Company) => {
-    let admin = adminsByCompany[company._id] || null;
+    let admin: CompanyAdmin | null = adminsByCompany[company._id] || null;
 
     // If no cached admin, always fetch fresh from backend
     if (!admin) {
       try {
         const res = await userService.getUsers();
-        const allUsers: any[] = res.users || [];
+        // GET /api/users returns a bare array, not `{users: [...]}` (see
+        // CLAUDE.md's route table) — `res` IS the list already.
+        const allUsers: any[] = Array.isArray(res) ? res : res.users || [];
         // Normalize companyId
-        const fresh = allUsers
+        const normalizedAdmins = allUsers
           .filter((u: any) => u.role === "company_admin")
           .map((u: any) => ({
             ...u,
             companyId:
               typeof u.companyId === "string" ? u.companyId : u.companyId?._id,
-          }))
-          .find((u: any) => u.companyId === company._id);
-        admin = fresh || null;
+          }));
+        admin = pickAdminForCompany(normalizedAdmins, company._id);
         // Update local cache
-        setAdmins(
-          allUsers
-            .filter((u: any) => u.role === "company_admin")
-            .map((u: any) => ({
-              ...u,
-              companyId:
-                typeof u.companyId === "string"
-                  ? u.companyId
-                  : u.companyId?._id,
-            }))
-        );
+        setAdmins(normalizedAdmins);
       } catch {
         // silent
       }
@@ -227,6 +241,7 @@ export default function CompaniesPage() {
       email: company.email || "",
       gstNo: company.gstNo || "",
       panNo: company.panNo || "",
+      isActive: company.isActive !== false,
       adminName: admin?.name || "",
       adminEmail: admin?.email || "",
       adminPhone: admin?.phone || "",
@@ -303,6 +318,7 @@ export default function CompaniesPage() {
             email: form.email,
             gstNo: form.gstNo,
             panNo: form.panNo,
+            isActive: form.isActive,
           },
           admin: adminPayload,
         });
@@ -337,11 +353,22 @@ export default function CompaniesPage() {
     if (!confirmDeleteAdmin) return;
     const name = confirmDeleteAdmin.name;
     try {
+      // Soft-deactivates the admin (same as the Users page's own Delete) —
+      // this blocks their login (authController.login only matches
+      // isActive:true users) and detaches them from being "the" admin for
+      // this company (see pickAdminForCompany), without hard-deleting the
+      // account or its history.
       await userService.deleteUser(confirmDeleteAdmin._id);
-      toast.success(`Admin ${name} deleted successfully`);
+      toast.success(`${name} removed as admin — their login is now deactivated`);
       await fetchAdmins();
+      // If this admin was loaded into the still-open Edit dialog, clear it
+      // immediately so the form reflects "no admin" without needing a reopen.
+      if (editingAdmin?._id === confirmDeleteAdmin._id) {
+        setEditingAdmin(null);
+        setForm((f) => ({ ...f, adminName: "", adminEmail: "", adminPhone: "", adminPassword: "" }));
+      }
     } catch (err: any) {
-      toast.error(err.message || "Delete failed");
+      toast.error(err.message || "Failed to remove admin");
     } finally {
       setConfirmDeleteAdmin(null);
     }
@@ -351,13 +378,16 @@ export default function CompaniesPage() {
 
   const adminsByCompany = useMemo(() => {
     const map: Record<string, CompanyAdmin> = {};
-    admins.forEach((a) => {
-      // companyId may be populated as object { _id, name, code } from backend
-      const cid =
-        typeof a.companyId === "string"
-          ? a.companyId
-          : (a.companyId as any)?._id;
-      if (cid) map[cid] = a;
+    const companyIds = new Set(
+      admins
+        .map((a) =>
+          typeof a.companyId === "string" ? a.companyId : (a.companyId as any)?._id
+        )
+        .filter(Boolean) as string[]
+    );
+    companyIds.forEach((cid) => {
+      const picked = pickAdminForCompany(admins, cid);
+      if (picked) map[cid] = picked;
     });
     return map;
   }, [admins]);
@@ -388,7 +418,7 @@ export default function CompaniesPage() {
       key: "company",
       header: "Company",
       align: "left" as const,
-      className: "w-[28%]",
+      className: "w-[18%]",
       render: (c: Company, index: number) => {
         const isInactive = c.isActive === false;
         return (
@@ -406,7 +436,7 @@ export default function CompaniesPage() {
                 <Building2 size={16} />
               </div>
               <div className="min-w-0">
-                <div className="font-bold text-gray-900 truncate">
+                <div className="font-semibold text-gray-900 truncate">
                   {c.name}
                 </div>
                 {c.address && (
@@ -424,6 +454,7 @@ export default function CompaniesPage() {
       key: "code",
       header: "Code",
       align: "left" as const,
+      className: "w-[8%]",
       render: (c: Company) => (
         <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
           {c.code}
@@ -434,7 +465,7 @@ export default function CompaniesPage() {
       key: "contact",
       header: "Contact",
       align: "left" as const,
-      className: "w-[20%]",
+      className: "w-[16%]",
       render: (c: Company) => (
         <div className="text-xs space-y-0.5">
           {c.phone && (
@@ -455,22 +486,28 @@ export default function CompaniesPage() {
       ),
     },
     {
-      key: "gst_pan",
-      header: "GST / PAN",
+      key: "gstNo",
+      header: "GST No.",
       align: "left" as const,
-      render: (c: Company) => (
-        <div className="flex flex-col gap-1">
-          {c.gstNo && (
-            <span className="text-xs font-mono text-green-700 font-semibold">GST: {c.gstNo}</span>
-          )}
-          {c.panNo && (
-            <span className="text-xs font-mono text-red-600 font-semibold">PAN: {c.panNo}</span>
-          )}
-          {!c.gstNo && !c.panNo && (
-            <span className="text-xs text-gray-400">—</span>
-          )}
-        </div>
-      ),
+      className: "w-[10%]",
+      render: (c: Company) =>
+        c.gstNo ? (
+          <span className="text-xs font-mono text-green-700 font-semibold">{c.gstNo}</span>
+        ) : (
+          <span className="text-xs text-gray-400">—</span>
+        ),
+    },
+    {
+      key: "panNo",
+      header: "PAN No.",
+      align: "left" as const,
+      className: "w-[9%]",
+      render: (c: Company) =>
+        c.panNo ? (
+          <span className="text-xs font-mono text-red-600 font-semibold">{c.panNo}</span>
+        ) : (
+          <span className="text-xs text-gray-400">—</span>
+        ),
     },
     {
       key: "admin",
@@ -499,6 +536,7 @@ export default function CompaniesPage() {
       key: "status",
       header: "Status",
       align: "left" as const,
+      className: "w-[7%]",
       render: (c: Company) => (
         <span className="badge-outline">
           {c.isActive ? "Active" : "Inactive"}
@@ -509,12 +547,11 @@ export default function CompaniesPage() {
       key: "created",
       header: "Created",
       align: "left" as const,
+      className: "w-[9%]",
       render: (c: Company) => (
         <div className="flex items-center gap-1 text-xs text-gray-500">
           <Calendar size={11} />
-          {c.createdAt
-            ? new Date(c.createdAt).toLocaleDateString()
-            : "—"}
+          {formatDate(c.createdAt, "—")}
         </div>
       ),
     },
@@ -522,6 +559,7 @@ export default function CompaniesPage() {
       key: "actions",
       header: "Actions",
       align: "right" as const,
+      className: "w-[8%]",
       render: (c: Company) => (
         <div className="flex items-center justify-end gap-1">
           <EditButton onClick={() => openEdit(c)} />
@@ -583,7 +621,7 @@ export default function CompaniesPage() {
         size="lg"
         key={editingCompany?._id || "create"}
       >
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
           {submitError && (
             <div className="alert alert-error">
               <span>{submitError}</span>
@@ -681,6 +719,20 @@ export default function CompaniesPage() {
                 }
                 error={formErrors.panNo}
               />
+
+              {isEdit && (
+                <label className="flex items-center gap-2 md:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={form.isActive}
+                    onChange={(e) =>
+                      setForm({ ...form, isActive: e.target.checked })
+                    }
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-sm text-gray-700">Active</span>
+                </label>
+              )}
             </div>
           </div>
 
@@ -688,17 +740,42 @@ export default function CompaniesPage() {
 
           {/* Admin Section */}
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Users size={18} />
-              <h3 className="font-semibold text-gray-900">
-                {isCreate ? "First Company Admin" : "Company Admin"}
-              </h3>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <Users size={18} />
+                <h3 className="font-semibold text-gray-900">
+                  {isCreate ? "First Company Admin" : "Company Admin"}
+                </h3>
+              </div>
+              {isEdit && editingAdmin && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="!text-red-600 !border-red-200 hover:!bg-red-50"
+                  onClick={() => setConfirmDeleteAdmin(editingAdmin)}
+                >
+                  Remove Admin
+                </Button>
+              )}
             </div>
 
             {isEdit && editingAdmin && (
               <div className="alert alert-info mb-3">
                 <span>
-                  Editing existing admin. Leave password blank to keep current.
+                  Editing existing admin. Name, Email, Phone and Password are all optional here — leave any of them
+                  blank to keep that field's current value unchanged; only the ones you actually fill in get updated.
+                  Use "Remove Admin" above to detach this admin from the company instead (their login gets
+                  deactivated and the company shows "No admin" afterward).
+                </span>
+              </div>
+            )}
+
+            {isEdit && !editingAdmin && (
+              <div className="alert alert-info mb-3">
+                <span>
+                  This company currently has no admin. Fill in the fields below to add one, or leave them all blank
+                  to save the company without an admin.
                 </span>
               </div>
             )}
@@ -714,6 +791,8 @@ export default function CompaniesPage() {
                 }
                 error={formErrors.adminName}
                 key={`adminName-${editingAdmin?._id || "new"}-${dialogMode}`}
+                name="company-admin-name"
+                autoComplete="off"
               />
 
               <Input
@@ -727,6 +806,8 @@ export default function CompaniesPage() {
                 }
                 error={formErrors.adminEmail}
                 key={`adminEmail-${editingAdmin?._id || "new"}-${dialogMode}`}
+                name="company-admin-email"
+                autoComplete="off"
               />
 
               <Input
@@ -740,6 +821,8 @@ export default function CompaniesPage() {
                 maxLength={10}
                 error={formErrors.adminPhone}
                 key={`adminPhone-${editingAdmin?._id || "new"}-${dialogMode}`}
+                name="company-admin-phone"
+                autoComplete="off"
               />
 
               <div className="relative">
@@ -751,6 +834,8 @@ export default function CompaniesPage() {
                     isEdit ? "Enter password" : "Min 6 characters"
                   }
                   value={form.adminPassword}
+                  name="company-admin-password"
+                  autoComplete="new-password"
                   onChange={(e) =>
                     setForm({ ...form, adminPassword: e.target.value })
                   }
@@ -792,14 +877,14 @@ export default function CompaniesPage() {
         variant="danger"
       />
 
-      {/* Confirm Delete Admin */}
+      {/* Confirm Remove Admin */}
       <ConfirmationDialog
         isOpen={!!confirmDeleteAdmin}
         onClose={() => setConfirmDeleteAdmin(null)}
         onConfirm={handleConfirmDeleteAdmin}
-        title="Delete Admin"
-        message={`Delete admin "${confirmDeleteAdmin?.name}" (${confirmDeleteAdmin?.email})?`}
-        confirmText="Delete"
+        title="Remove Admin"
+        message={`Remove "${confirmDeleteAdmin?.name}" (${confirmDeleteAdmin?.email}) as the admin for this company? Their login will be deactivated immediately, and the company will show "No admin" until you add a new one.`}
+        confirmText="Remove Admin"
         cancelText="Cancel"
         variant="danger"
       />

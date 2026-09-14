@@ -16,6 +16,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { toast } from "@/lib/toast";
+import { formatDate } from "@/lib/date";
 import { Input } from "@/components/ui/Input";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Select } from "@/components/ui/Select";
@@ -91,7 +92,9 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     try {
       const res = await userService.getUsers();
-      setUsers(res.users || []);
+      // GET /api/users returns a bare array, not `{users: [...]}` (see
+      // CLAUDE.md's route table) — `res` IS the list already.
+      setUsers(Array.isArray(res) ? res : res.users || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -246,9 +249,7 @@ export default function UsersPage() {
               </div>
               <div className="text-[11px] text-gray-500 mt-0.5">
                 Last login:{" "}
-                {u.lastLogin
-                  ? new Date(u.lastLogin).toLocaleDateString()
-                  : "Never"}
+                {formatDate(u.lastLogin, "Never")}
               </div>
             </div>
           </div>
@@ -370,9 +371,7 @@ export default function UsersPage() {
         <div className="inline-flex items-center bg-white border border-gray-200 rounded-lg p-1">
           {[
             { id: "all", label: "All" },
-            { id: "super", label: "Super Admins" },
             { id: "admin", label: "Company Admins" },
-            { id: "staff", label: "Staff" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -418,7 +417,7 @@ export default function UsersPage() {
         size="md"
         overflowVisible
       >
-        <form onSubmit={handleAddAdmin} className="space-y-4">
+        <form onSubmit={handleAddAdmin} className="space-y-4" autoComplete="off">
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Full Name"
@@ -427,6 +426,8 @@ export default function UsersPage() {
               value={addForm.name}
               onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
               error={addErrors.name}
+              name="new-admin-name"
+              autoComplete="off"
             />
             <Input
               label="Phone"
@@ -440,6 +441,8 @@ export default function UsersPage() {
               }}
               error={addErrors.phone}
               maxLength={10}
+              name="new-admin-phone"
+              autoComplete="off"
             />
           </div>
 
@@ -451,6 +454,8 @@ export default function UsersPage() {
             value={addForm.email}
             onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
             error={addErrors.email}
+            name="new-admin-email"
+            autoComplete="off"
           />
 
           <div className="relative">
@@ -466,6 +471,8 @@ export default function UsersPage() {
               }
               error={addErrors.password}
               className="pr-10"
+              name="new-admin-password"
+              autoComplete="new-password"
             />
             <button
               type="button"

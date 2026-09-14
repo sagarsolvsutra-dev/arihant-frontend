@@ -16,6 +16,7 @@ import { purchaseReturnService } from "@/services/purchaseReturnService";
 import { saleReturnService } from "@/services/saleReturnService";
 import { splitCasePcs } from "@/lib/stock";
 import { toast } from "@/lib/toast";
+import { formatDate } from "@/lib/date";
 
 interface GodownStockBucket {
   godownId: string;
@@ -496,7 +497,7 @@ export default function GodownStockPage() {
                         </button>
                       ),
                     },
-                    { key: "date", header: "Date", accessor: (r: PurchaseRow) => (r.invoiceDate ? new Date(r.invoiceDate).toLocaleDateString("en-IN") : "-") },
+                    { key: "date", header: "Date", accessor: (r: PurchaseRow) => formatDate(r.invoiceDate) },
                     { key: "item", header: "Item", accessor: (r: PurchaseRow) => r.itemName },
                     { key: "subGroup", header: "Sub Group", accessor: (r: PurchaseRow) => r.subGroupName },
                     { key: "case", header: "Case", align: "right" as const, accessor: (r: PurchaseRow) => r.caseQty },
@@ -531,7 +532,7 @@ export default function GodownStockPage() {
                         </button>
                       ),
                     },
-                    { key: "date", header: "Date", accessor: (r: SaleRow) => (r.invoiceDate ? new Date(r.invoiceDate).toLocaleDateString("en-IN") : "-") },
+                    { key: "date", header: "Date", accessor: (r: SaleRow) => formatDate(r.invoiceDate) },
                     { key: "customer", header: "Customer", accessor: (r: SaleRow) => r.customerName },
                     { key: "item", header: "Item", accessor: (r: SaleRow) => r.itemName },
                     { key: "subGroup", header: "Sub Group", accessor: (r: SaleRow) => r.subGroupName },
@@ -567,7 +568,7 @@ export default function GodownStockPage() {
                         </button>
                       ),
                     },
-                    { key: "date", header: "Date", accessor: (r: ReturnRow) => (r.returnDate ? new Date(r.returnDate).toLocaleDateString("en-IN") : "-") },
+                    { key: "date", header: "Date", accessor: (r: ReturnRow) => formatDate(r.returnDate) },
                     { key: "supplier", header: "Supplier", accessor: (r: ReturnRow) => r.partyName },
                     { key: "item", header: "Item", accessor: (r: ReturnRow) => r.itemName },
                     { key: "subGroup", header: "Sub Group", accessor: (r: ReturnRow) => r.subGroupName },
@@ -612,7 +613,7 @@ export default function GodownStockPage() {
                         </button>
                       ),
                     },
-                    { key: "date", header: "Date", accessor: (r: ReturnRow) => (r.returnDate ? new Date(r.returnDate).toLocaleDateString("en-IN") : "-") },
+                    { key: "date", header: "Date", accessor: (r: ReturnRow) => formatDate(r.returnDate) },
                     { key: "customer", header: "Customer", accessor: (r: ReturnRow) => r.partyName },
                     { key: "item", header: "Item", accessor: (r: ReturnRow) => r.itemName },
                     { key: "subGroup", header: "Sub Group", accessor: (r: ReturnRow) => r.subGroupName },

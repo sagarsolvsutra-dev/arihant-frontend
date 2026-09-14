@@ -12,6 +12,7 @@ import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { openingBillService } from "@/services/openingBillService";
 import { useRouter } from "next/navigation";
+import { formatDate } from "@/lib/date";
 
 interface OpeningBillRecord {
   id?: string;
@@ -88,7 +89,7 @@ export default function PurchaseOpeningBillsPage() {
   const columns = [
     { key: "supplier", header: "Supplier Name", accessor: partyName },
     { key: "invoice_no", header: "Invoice No.", accessor: (r: OpeningBillRecord) => r.billNo },
-    { key: "invoice_date", header: "Invoice Date", accessor: (r: OpeningBillRecord) => r.billDate ? new Date(r.billDate).toLocaleDateString("en-GB") : "-" },
+    { key: "invoice_date", header: "Invoice Date", accessor: (r: OpeningBillRecord) => formatDate(r.billDate) },
     {
       key: "amount",
       header: "Amount (₹)",

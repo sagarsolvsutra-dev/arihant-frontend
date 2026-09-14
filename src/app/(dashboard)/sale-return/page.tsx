@@ -15,6 +15,7 @@ import { godownService } from "@/services/godownService";
 import { itemService } from "@/services/itemService";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
+import { formatDate } from "@/lib/date";
 
 interface SaleReturnRecord {
   _id: string;
@@ -121,7 +122,7 @@ export default function SaleReturnListPage() {
     {
       key: "returnDate",
       header: "Date",
-      accessor: (r: SaleReturnRecord) => (r.returnDate ? new Date(r.returnDate).toLocaleDateString("en-IN") : "-"),
+      accessor: (r: SaleReturnRecord) => formatDate(r.returnDate),
     },
     {
       key: "customer",

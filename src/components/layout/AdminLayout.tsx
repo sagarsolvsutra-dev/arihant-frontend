@@ -25,6 +25,7 @@ import {
 import { toast } from "@/lib/toast";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
+import { formatDate } from "@/lib/date";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -231,10 +232,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const masterItems: any[] = [];
 
   const getFormattedDate = () => {
-    const options: Intl.DateTimeFormatOptions = {
-      day: "2-digit", month: "2-digit", year: "numeric",
-    };
-    return new Date().toLocaleDateString("en-GB", options);
+    return formatDate(new Date());
   };
 
   const renderMenuItem = (item: {

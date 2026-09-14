@@ -13,6 +13,7 @@ import { reportService } from "@/services/reportService";
 import { itemService } from "@/services/itemService";
 import { godownService } from "@/services/godownService";
 import { toast } from "@/lib/toast";
+import { formatDate } from "@/lib/date";
 
 interface PurchaseReportLine {
   recordId: string;
@@ -97,7 +98,7 @@ export default function PurchaseReportPage() {
           {r.invoiceNo}
         </button>
       ) },
-    { key: "invoiceDate", header: "Date", render: (r) => new Date(r.invoiceDate).toLocaleDateString("en-IN") },
+    { key: "invoiceDate", header: "Date", render: (r) => formatDate(r.invoiceDate) },
     { key: "itemName", header: "Item", render: (r) => r.itemName },
     { key: "subGroupName", header: "Sub Group", render: (r) => r.subGroupName || "-" },
     { key: "godown", header: "Godown", render: (r) => godownName(r.godownId) },

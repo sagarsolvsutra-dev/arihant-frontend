@@ -15,6 +15,7 @@ import { purchaseReturnService } from "@/services/purchaseReturnService";
 import { saleReturnService } from "@/services/saleReturnService";
 import { splitCasePcs } from "@/lib/stock";
 import { toast } from "@/lib/toast";
+import { formatDate } from "@/lib/date";
 
 interface GodownStockBucket {
   godownId: string;
@@ -470,7 +471,7 @@ export default function ItemStockPage() {
                         </button>
                       ),
                     },
-                    { key: "date", header: "Date", accessor: (r: PurchaseRow) => (r.invoiceDate ? new Date(r.invoiceDate).toLocaleDateString("en-IN") : "-") },
+                    { key: "date", header: "Date", accessor: (r: PurchaseRow) => formatDate(r.invoiceDate) },
                     { key: "godown", header: "Godown", accessor: (r: PurchaseRow) => r.godownName },
                     { key: "case", header: "Case", align: "right" as const, accessor: (r: PurchaseRow) => r.caseQty },
                     { key: "pcs", header: "Pcs", align: "right" as const, accessor: (r: PurchaseRow) => r.pcsQty },
@@ -504,7 +505,7 @@ export default function ItemStockPage() {
                         </button>
                       ),
                     },
-                    { key: "date", header: "Date", accessor: (r: SaleRow) => (r.invoiceDate ? new Date(r.invoiceDate).toLocaleDateString("en-IN") : "-") },
+                    { key: "date", header: "Date", accessor: (r: SaleRow) => formatDate(r.invoiceDate) },
                     { key: "customer", header: "Customer", accessor: (r: SaleRow) => r.customerName },
                     { key: "godown", header: "Godown", accessor: (r: SaleRow) => r.godownName },
                     { key: "case", header: "Case", align: "right" as const, accessor: (r: SaleRow) => r.caseQty },
@@ -539,7 +540,7 @@ export default function ItemStockPage() {
                         </button>
                       ),
                     },
-                    { key: "date", header: "Date", accessor: (r: ReturnRow) => (r.returnDate ? new Date(r.returnDate).toLocaleDateString("en-IN") : "-") },
+                    { key: "date", header: "Date", accessor: (r: ReturnRow) => formatDate(r.returnDate) },
                     { key: "supplier", header: "Supplier", accessor: (r: ReturnRow) => r.partyName },
                     { key: "godown", header: "Godown", accessor: (r: ReturnRow) => r.godownName },
                     { key: "case", header: "Case", align: "right" as const, accessor: (r: ReturnRow) => r.caseQty },
@@ -583,7 +584,7 @@ export default function ItemStockPage() {
                         </button>
                       ),
                     },
-                    { key: "date", header: "Date", accessor: (r: ReturnRow) => (r.returnDate ? new Date(r.returnDate).toLocaleDateString("en-IN") : "-") },
+                    { key: "date", header: "Date", accessor: (r: ReturnRow) => formatDate(r.returnDate) },
                     { key: "customer", header: "Customer", accessor: (r: ReturnRow) => r.partyName },
                     { key: "godown", header: "Godown", accessor: (r: ReturnRow) => r.godownName },
                     { key: "case", header: "Case", align: "right" as const, accessor: (r: ReturnRow) => r.caseQty },

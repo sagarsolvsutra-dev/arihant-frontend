@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { useCompany } from "@/context/CompanyContext";
 import { reportService } from "@/services/reportService";
 import { toast } from "@/lib/toast";
+import { formatDate } from "@/lib/date";
 
 interface LedgerEntry {
   date: string;
@@ -76,7 +77,7 @@ export default function SupplierLedgerPage() {
   };
 
   const columns: Column<LedgerEntry>[] = [
-    { key: "date", header: "Date", render: (r) => (r.date ? new Date(r.date).toLocaleDateString("en-IN") : "-") },
+    { key: "date", header: "Date", render: (r) => formatDate(r.date) },
     { key: "type", header: "Type", primary: true, render: (r) => r.type },
     {
       key: "ref",

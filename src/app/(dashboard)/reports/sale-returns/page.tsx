@@ -14,6 +14,7 @@ import { itemService } from "@/services/itemService";
 import { godownService } from "@/services/godownService";
 import { customerService } from "@/services/customerService";
 import { toast } from "@/lib/toast";
+import { formatDate } from "@/lib/date";
 
 interface SaleReturnLine {
   recordId: string;
@@ -118,7 +119,7 @@ export default function SaleReturnReportPage() {
           {r.returnNo}
         </button>
       ) },
-    { key: "returnDate", header: "Date", render: (r) => new Date(r.returnDate).toLocaleDateString("en-IN") },
+    { key: "returnDate", header: "Date", render: (r) => formatDate(r.returnDate) },
     { key: "customerName", header: "Customer", render: (r) => r.customerName || "-" },
     { key: "itemName", header: "Item", render: (r) => r.itemName },
     { key: "subGroupName", header: "Sub Group", render: (r) => r.subGroupName || "-" },

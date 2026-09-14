@@ -9,9 +9,16 @@ import {
   ShoppingBag,
   Tag,
   RotateCcw,
+  ClipboardList,
 } from "lucide-react";
 
 const REPORTS = [
+  {
+    href: "/reports/full-stock",
+    title: "Full Report",
+    subtitle: "Opening/Purchase/Sale/Closing stock per item, grouped by Supplier, with Case+Pcs and Group/Grand totals",
+    icon: ClipboardList,
+  },
   {
     href: "/reports/items",
     title: "Item Report",

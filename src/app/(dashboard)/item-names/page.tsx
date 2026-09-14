@@ -181,19 +181,19 @@ setRecords([]);
       key: "srno",
       header: "SR. NO.",
       accessor: (row: ItemNameRecord, index: number) => index + 1,
-      className: "w-20 text-center font-semibold text-gray-500",
+      className: "w-[6%] text-center font-semibold text-gray-500",
     },
     {
       key: "name",
       header: "ITEM NAME",
       accessor: (row: ItemNameRecord) => row.name,
-      className: "font-semibold text-gray-900",
+      className: "w-[34%] font-semibold text-gray-900",
     },
     {
       key: "supplier",
       header: "SUPPLIER",
       accessor: (row: ItemNameRecord) => row.supplierId?.name || "-",
-      className: "text-gray-600",
+      className: "w-[30%] text-gray-600",
     },
     {
       key: "status",
@@ -208,7 +208,7 @@ setRecords([]);
           {row.isActive ? "Active" : "Inactive"}
         </span>
       ),
-      className: "text-center",
+      className: "w-[12%] text-center",
     },
     {
       key: "actions",
@@ -219,7 +219,7 @@ setRecords([]);
           <DeleteButton onClick={() => handleDeleteClick(row)} />
         </div>
       ),
-      className: "w-24 text-center",
+      className: "w-[18%] text-center",
     },
   ];
 

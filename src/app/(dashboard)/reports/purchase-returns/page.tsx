@@ -14,6 +14,7 @@ import { itemService } from "@/services/itemService";
 import { godownService } from "@/services/godownService";
 import { supplierService } from "@/services/supplierService";
 import { toast } from "@/lib/toast";
+import { formatDate } from "@/lib/date";
 
 interface PurchaseReturnLine {
   recordId: string;
@@ -118,7 +119,7 @@ export default function PurchaseReturnReportPage() {
           {r.returnNo}
         </button>
       ) },
-    { key: "returnDate", header: "Date", render: (r) => new Date(r.returnDate).toLocaleDateString("en-IN") },
+    { key: "returnDate", header: "Date", render: (r) => formatDate(r.returnDate) },
     { key: "supplierName", header: "Supplier", render: (r) => r.supplierName || "-" },
     { key: "itemName", header: "Item", render: (r) => r.itemName },
     { key: "subGroupName", header: "Sub Group", render: (r) => r.subGroupName || "-" },

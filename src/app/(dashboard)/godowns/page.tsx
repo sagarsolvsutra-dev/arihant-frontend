@@ -14,6 +14,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { godownService } from "@/services/godownService";
 import { godownGroupService } from "@/services/godownGroupService";
 import { API_ENDPOINTS } from "@/lib/api";
+import { downloadFile } from "@/lib/download";
 import { toast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
 
@@ -169,20 +170,22 @@ export default function GodownsPage() {
     setPage(1);
   };
 
-  // Real auth now protects every route (see CLAUDE.md Security Issues), and a
-  // plain new-tab navigation can't carry an Authorization header — so the
-  // token rides along as a query param instead (the backend's `protect`
-  // middleware accepts either). The browser still handles the file download
-  // itself from the Content-Disposition header, no fetch/blob dance needed.
-  const handleExport = (format: "pdf" | "excel") => {
+  // Fetched as a blob and saved via a throwaway <a download> rather than
+  // window.open()'d — window.open() is what caused a real bug where a
+  // blocked/hijacked popup could fall back to navigating the current tab,
+  // which looked like the whole page refreshing. See lib/download.ts.
+  const handleExport = async (format: "pdf" | "excel") => {
     if (!companyId) return;
     // No Godown picked → "all" tells the backend to export across every godown
     // in the company (adding its own Godown column to the report) instead of
     // requiring a specific one. Same "all" fallback for Type — no selection
     // exports every transaction type as a combined multi-section report.
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    const url = `${API_ENDPOINTS.GODOWNS}/${exportGodownId || "all"}/export?companyId=${companyId}&type=${exportType || "all"}&format=${format}${token ? `&token=${encodeURIComponent(token)}` : ""}`;
-    window.open(url, "_blank");
+    const url = `${API_ENDPOINTS.GODOWNS}/${exportGodownId || "all"}/export?companyId=${companyId}&type=${exportType || "all"}&format=${format}`;
+    try {
+      await downloadFile(url, `godown_export.${format === "pdf" ? "pdf" : "xlsx"}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to export");
+    }
   };
 
   const columns = [

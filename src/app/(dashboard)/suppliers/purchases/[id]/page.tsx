@@ -13,6 +13,7 @@ import { purchaseReturnService } from "@/services/purchaseReturnService";
 import { supplierService } from "@/services/supplierService";
 import { splitCasePcs } from "@/lib/stock";
 import { toast } from "@/lib/toast";
+import { formatDate } from "@/lib/date";
 
 interface PurchaseLine {
   itemId: string;
@@ -320,7 +321,7 @@ export default function SupplierPurchaseHistoryPage() {
                         </button>
                       ),
                     },
-                    { key: "date", header: "Date", accessor: (r: LineRow) => (r.invoiceDate ? new Date(r.invoiceDate).toLocaleDateString("en-IN") : "-") },
+                    { key: "date", header: "Date", accessor: (r: LineRow) => formatDate(r.invoiceDate) },
                     { key: "item", header: "Item", accessor: (r: LineRow) => r.itemName },
                     { key: "subGroup", header: "Sub Group", accessor: (r: LineRow) => r.subGroupName },
                     { key: "case", header: "Case", align: "right" as const, accessor: (r: LineRow) => r.caseQty },
@@ -355,7 +356,7 @@ export default function SupplierPurchaseHistoryPage() {
                         </button>
                       ),
                     },
-                    { key: "date", header: "Date", accessor: (r: ReturnLineRow) => (r.returnDate ? new Date(r.returnDate).toLocaleDateString("en-IN") : "-") },
+                    { key: "date", header: "Date", accessor: (r: ReturnLineRow) => formatDate(r.returnDate) },
                     { key: "item", header: "Item", accessor: (r: ReturnLineRow) => r.itemName },
                     { key: "subGroup", header: "Sub Group", accessor: (r: ReturnLineRow) => r.subGroupName },
                     { key: "case", header: "Case", align: "right" as const, accessor: (r: ReturnLineRow) => r.caseQty },

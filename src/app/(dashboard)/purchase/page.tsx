@@ -15,6 +15,7 @@ import { godownService } from "@/services/godownService";
 import { itemService } from "@/services/itemService";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
+import { formatDate } from "@/lib/date";
 
 interface PurchaseRecord {
   _id: string;
@@ -118,7 +119,7 @@ export default function PurchaseListPage() {
     {
       key: "invoiceDate",
       header: "Date",
-      accessor: (r: PurchaseRecord) => (r.invoiceDate ? new Date(r.invoiceDate).toLocaleDateString("en-IN") : "-"),
+      accessor: (r: PurchaseRecord) => formatDate(r.invoiceDate),
     },
     {
       key: "itemName",

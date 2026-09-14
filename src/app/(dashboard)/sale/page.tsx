@@ -15,6 +15,7 @@ import { godownService } from "@/services/godownService";
 import { itemService } from "@/services/itemService";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
+import { formatDate } from "@/lib/date";
 
 interface SaleRecord {
   _id: string;
@@ -120,7 +121,7 @@ export default function SaleListPage() {
     {
       key: "invoiceDate",
       header: "Date",
-      accessor: (r: SaleRecord) => (r.invoiceDate ? new Date(r.invoiceDate).toLocaleDateString("en-IN") : "-"),
+      accessor: (r: SaleRecord) => formatDate(r.invoiceDate),
     },
     {
       key: "customer",
