@@ -163,6 +163,10 @@ export default function AddPurchasePage() {
   const [allItems, setAllItems] = useState<ItemRecord[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierRecord[]>([]);
   const [godowns, setGodowns] = useState<{ _id: string; name: string; godownGroupId?: { _id: string; name: string } | string | null }[]>([]);
+  // Unfiltered — includes godowns later deactivated. Same reason as allItems above:
+  // godown is per-line here, so several lines (or the entry row) can each reference
+  // a godown that's since been deactivated.
+  const [allGodowns, setAllGodowns] = useState<{ _id: string; name: string; godownGroupId?: { _id: string; name: string } | string | null }[]>([]);
 
   // Header
   const [invoiceNo, setInvoiceNo] = useState("");
@@ -208,6 +212,7 @@ export default function AddPurchasePage() {
     });
     godownService.getGodowns(companyId, 1, 1000).then((res: any) => {
       const list = res.data || res || [];
+      setAllGodowns(list);
       setGodowns(list.filter((g: any) => g.isActive !== false));
     });
   }, [companyId]);
@@ -234,6 +239,16 @@ export default function AddPurchasePage() {
   const itemDropdownOptions = selectedItemFallback ? [...itemsForSupplier, selectedItemFallback] : itemsForSupplier;
 
   const selectedItem = items.find((i) => i._id === selectedItemId) || allItems.find((i) => i._id === selectedItemId) || null;
+
+  // Same "keep a deactivated-but-referenced record selectable" fallback as items above,
+  // applied to Godown. Godown is per-line here, so the "referenced" set isn't just one
+  // value — it's every grid line's own godownId plus whatever's currently selected in
+  // the entry row.
+  const referencedGodownIds = new Set([...lines.map((l) => l.godownId), godownId].filter(Boolean));
+  const missingGodowns = allGodowns.filter(
+    (g) => referencedGodownIds.has(g._id) && !godowns.some((gd) => gd._id === g._id)
+  );
+  const godownDropdownOptions = missingGodowns.length ? [...godowns, ...missingGodowns] : godowns;
 
   const activeRateEntries = (selectedItem?.mrpEntries || []).filter((e) => e.mrpActive !== false);
 
@@ -538,7 +553,10 @@ export default function AddPurchasePage() {
       key: "godown",
       header: "Godown",
       accessor: (l: Line) => {
-        const g = godowns.find((gd) => gd._id === l.godownId);
+        // allGodowns, not the active-only `godowns` — a line can reference a
+        // godown that's since been deactivated, and this grid row must still
+        // show its real name instead of silently falling back to "-".
+        const g = allGodowns.find((gd) => gd._id === l.godownId);
         return g ? godownLabel(g) : "-";
       },
     },
@@ -660,7 +678,7 @@ export default function AddPurchasePage() {
                   <td className={rowLabel}>Godown <span className="text-red-500 font-bold">*</span></td>
                   <td className="relative z-[54]">
                     <Select
-                      options={godowns.map((g) => ({ value: g._id, label: godownLabel(g) }))}
+                      options={godownDropdownOptions.map((g) => ({ value: g._id, label: godownLabel(g) }))}
                       value={godownId}
                       onChange={setGodownId}
                       className={selectClass}

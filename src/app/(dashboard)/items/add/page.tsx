@@ -376,9 +376,22 @@ export default function AddItemPage() {
     // validation despite the required red asterisk, creating an item with zero
     // pricing. Compare the parsed numeric value instead, matching the Packing
     // check above.
-    if (!purchaseRate || parseFloat(purchaseRate) <= 0) newErrors.purchaseRate = "Purchase Rate is required";
-    if (!salesRateRetailer || parseFloat(salesRateRetailer) <= 0) newErrors.salesRateRetailer = "Sale Rate is required";
-    if (!mrp || parseFloat(mrp) <= 0) newErrors.mrp = "M.R.P. is required";
+    //
+    // Only required when there's no MRP entry committed to the grid yet
+    // (mrpEntries.length === 0) — handleSave's own finalMrpEntries logic uses
+    // these raw fields ONLY as a fallback when the grid is empty. Once
+    // "Add" has committed at least one entry, handleAddMrpEntry resets these
+    // fields back to "0" (ready for a second tier) — validating them
+    // unconditionally meant saving a real multi-MRP item (fill fields → Add
+    // → Save, the app's own advertised workflow) always failed with a false
+    // "Purchase Rate is required" the moment a second/only-via-grid entry
+    // existed, even though a perfectly valid entry was already sitting in
+    // mrpEntries.
+    if (mrpEntries.length === 0) {
+      if (!purchaseRate || parseFloat(purchaseRate) <= 0) newErrors.purchaseRate = "Purchase Rate is required";
+      if (!salesRateRetailer || parseFloat(salesRateRetailer) <= 0) newErrors.salesRateRetailer = "Sale Rate is required";
+      if (!mrp || parseFloat(mrp) <= 0) newErrors.mrp = "M.R.P. is required";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

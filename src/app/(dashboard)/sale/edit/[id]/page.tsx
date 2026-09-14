@@ -171,13 +171,21 @@ export default function EditSalePage() {
   // subtract it back out before adding the new (about-to-be-saved) pending amount,
   // or every edit of an already-pending sale would double-count itself.
   const originalPendingAmountRef = useRef(0);
+  // Which customer the loaded sale's pendingAmount was originally counted against —
+  // only subtract originalPendingAmountRef.current back out of the fetched outstanding
+  // when the currently-selected customer is still that same customer (see handleSave).
+  const originalCustomerIdRef = useRef<string | null>(null);
   // Non-null message = "over the customer's credit limit, confirm before saving".
   const [creditWarning, setCreditWarning] = useState<string | null>(null);
   const [items, setItems] = useState<ItemRecord[]>([]);
   // Unfiltered — see purchase/add/page.tsx for why this exists alongside `items`.
   const [allItems, setAllItems] = useState<ItemRecord[]>([]);
   const [customers, setCustomers] = useState<CustomerRecord[]>([]);
+  // Unfiltered — see allItems above for why this exists alongside `customers`.
+  const [allCustomers, setAllCustomers] = useState<CustomerRecord[]>([]);
   const [godowns, setGodowns] = useState<{ _id: string; name: string; godownGroupId?: { _id: string; name: string } | string | null }[]>([]);
+  // Unfiltered — same reason as allItems, but per-line (see godownDropdownOptions below).
+  const [allGodowns, setAllGodowns] = useState<{ _id: string; name: string; godownGroupId?: { _id: string; name: string } | string | null }[]>([]);
 
   const [invoiceType, setInvoiceType] = useState("Tax Invoice");
   const [paymentType, setPaymentType] = useState("Credit");
@@ -218,10 +226,12 @@ export default function EditSalePage() {
     });
     customerService.getCustomers(companyId, 1, 1000).then((res: any) => {
       const list = res.data || res || [];
+      setAllCustomers(list);
       setCustomers(list.filter((c: CustomerRecord & { isActive?: boolean }) => (c as any).isActive !== false));
     });
     godownService.getGodowns(companyId, 1, 1000).then((res: any) => {
       const list = res.data || res || [];
+      setAllGodowns(list);
       setGodowns(list.filter((g: any) => g.isActive !== false));
     });
   }, [companyId]);
@@ -241,6 +251,7 @@ export default function EditSalePage() {
         setReceivedAmount(String(s.receivedAmount ?? 0));
         setDueDate(toDateInputValue(s.dueDate));
         originalPendingAmountRef.current = s.pendingAmount || 0;
+        originalCustomerIdRef.current = typeof s.customerId === "string" ? s.customerId : s.customerId?._id || "";
         setLines(
           (s.items || []).map((it: any, idx: number) => ({
             key: `${it.itemId}-${idx}`,
@@ -275,7 +286,17 @@ export default function EditSalePage() {
       .finally(() => setLoading(false));
   }, [saleId]);
 
-  const selectedCustomer = customers.find((c) => c._id === customerId) || null;
+  // Same "keep a deactivated-but-referenced record selectable" fallback as items below —
+  // Customer is a single, header-level value here, so inject it back as an extra option
+  // if it's been filtered out by the active-only filter (e.g. deactivated after this
+  // sale was created).
+  const selectedCustomerFallback =
+    customerId && !customers.some((c) => c._id === customerId)
+      ? allCustomers.find((c) => c._id === customerId)
+      : undefined;
+  const customerDropdownOptions = selectedCustomerFallback ? [...customers, selectedCustomerFallback] : customers;
+
+  const selectedCustomer = customers.find((c) => c._id === customerId) || allCustomers.find((c) => c._id === customerId) || null;
   const customerType = selectedCustomer?.customerType || "Retailer";
 
   // Item Name is unscoped (no supplier-style filter, see quirk #26), so the only way
@@ -286,6 +307,15 @@ export default function EditSalePage() {
       ? allItems.find((i) => i._id === selectedItemId)
       : undefined;
   const itemDropdownOptions = selectedItemFallback ? [...items, selectedItemFallback] : items;
+
+  // Same fallback as items, applied to Godown. Godown is per-line here, so the
+  // "referenced" set isn't just one value — it's every grid line's own godownId plus
+  // whatever's currently selected in the entry row.
+  const referencedGodownIds = new Set([...lines.map((l) => l.godownId), godownId].filter(Boolean));
+  const missingGodowns = allGodowns.filter(
+    (g) => referencedGodownIds.has(g._id) && !godowns.some((gd) => gd._id === g._id)
+  );
+  const godownDropdownOptions = missingGodowns.length ? [...godowns, ...missingGodowns] : godowns;
 
   const selectedItem = items.find((i) => i._id === selectedItemId) || allItems.find((i) => i._id === selectedItemId) || null;
 
@@ -508,7 +538,9 @@ export default function EditSalePage() {
       try {
         const status: any = await customerService.getCustomerOutstanding(customerId, companyId);
         const thisSalePending = totals.netAmount - (parseFloat(receivedAmount) || 0);
-        const projected = (status.outstanding || 0) - originalPendingAmountRef.current + thisSalePending;
+        const alreadyCounted =
+          customerId === originalCustomerIdRef.current ? originalPendingAmountRef.current : 0;
+        const projected = (status.outstanding || 0) - alreadyCounted + thisSalePending;
         if (projected > selectedCustomer.creditLimit!) {
           setCreditWarning(
             `${selectedCustomer.name}'s credit limit is ₹${selectedCustomer.creditLimit!.toFixed(2)}. This sale would bring their outstanding to ₹${projected.toFixed(2)} — over the limit by ₹${(projected - selectedCustomer.creditLimit!).toFixed(2)}. Save this sale anyway?`
@@ -612,7 +644,10 @@ export default function EditSalePage() {
       key: "godown",
       header: "Godown",
       accessor: (l: Line) => {
-        const g = godowns.find((gd) => gd._id === l.godownId);
+        // allGodowns, not the active-only `godowns` — a line can reference a
+        // godown that's since been deactivated, and this grid row must still
+        // show its real name instead of silently falling back to "-".
+        const g = allGodowns.find((gd) => gd._id === l.godownId);
         return g ? godownLabel(g) : "-";
       },
     },
@@ -660,7 +695,7 @@ export default function EditSalePage() {
                   <td className="relative z-[70]">
                     <div className="w-64">
                       <Select
-                        options={customers.map((c) => ({ value: c._id, label: c.name }))}
+                        options={customerDropdownOptions.map((c) => ({ value: c._id, label: c.name }))}
                         value={customerId}
                         onChange={setCustomerId}
                         className={selectClass}
@@ -784,7 +819,7 @@ export default function EditSalePage() {
                   <td className={rowLabel}>Godown <span className="text-red-500 font-bold">*</span></td>
                   <td className="relative z-[54]">
                     <Select
-                      options={godowns.map((g) => ({ value: g._id, label: godownLabel(g) }))}
+                      options={godownDropdownOptions.map((g) => ({ value: g._id, label: godownLabel(g) }))}
                       value={godownId}
                       onChange={setGodownId}
                       className={selectClass}

@@ -170,7 +170,11 @@ export default function AddSalePage() {
   // Unfiltered — see purchase/add/page.tsx for why this exists alongside `items`.
   const [allItems, setAllItems] = useState<ItemRecord[]>([]);
   const [customers, setCustomers] = useState<CustomerRecord[]>([]);
+  // Unfiltered — see allItems above for why this exists alongside `customers`.
+  const [allCustomers, setAllCustomers] = useState<CustomerRecord[]>([]);
   const [godowns, setGodowns] = useState<{ _id: string; name: string; godownGroupId?: { _id: string; name: string } | string | null }[]>([]);
+  // Unfiltered — same reason as allItems, but per-line (see godownDropdownOptions below).
+  const [allGodowns, setAllGodowns] = useState<{ _id: string; name: string; godownGroupId?: { _id: string; name: string } | string | null }[]>([]);
 
   // Header
   const [invoiceType, setInvoiceType] = useState("Tax Invoice");
@@ -215,10 +219,12 @@ export default function AddSalePage() {
     });
     customerService.getCustomers(companyId, 1, 1000).then((res: any) => {
       const list = res.data || res || [];
+      setAllCustomers(list);
       setCustomers(list.filter((c: CustomerRecord & { isActive?: boolean }) => (c as any).isActive !== false));
     });
     godownService.getGodowns(companyId, 1, 1000).then((res: any) => {
       const list = res.data || res || [];
+      setAllGodowns(list);
       setGodowns(list.filter((g: any) => g.isActive !== false));
     });
   }, [companyId]);
@@ -238,7 +244,17 @@ export default function AddSalePage() {
     }).catch(() => setInvoiceNo("1"));
   }, [companyId]);
 
-  const selectedCustomer = customers.find((c) => c._id === customerId) || null;
+  // Same "keep a deactivated-but-referenced record selectable" fallback as items below —
+  // Customer is a single, header-level value here, so inject it back as an extra option
+  // if it's been filtered out by the active-only filter (e.g. deactivated after this
+  // sale was created).
+  const selectedCustomerFallback =
+    customerId && !customers.some((c) => c._id === customerId)
+      ? allCustomers.find((c) => c._id === customerId)
+      : undefined;
+  const customerDropdownOptions = selectedCustomerFallback ? [...customers, selectedCustomerFallback] : customers;
+
+  const selectedCustomer = customers.find((c) => c._id === customerId) || allCustomers.find((c) => c._id === customerId) || null;
   const customerType = selectedCustomer?.customerType || "Retailer";
 
   // Defaults Due Date from the customer's own Default Due Days (creditDays) the
@@ -261,6 +277,15 @@ export default function AddSalePage() {
       ? allItems.find((i) => i._id === selectedItemId)
       : undefined;
   const itemDropdownOptions = selectedItemFallback ? [...items, selectedItemFallback] : items;
+
+  // Same fallback as items, applied to Godown. Godown is per-line here, so the
+  // "referenced" set isn't just one value — it's every grid line's own godownId plus
+  // whatever's currently selected in the entry row.
+  const referencedGodownIds = new Set([...lines.map((l) => l.godownId), godownId].filter(Boolean));
+  const missingGodowns = allGodowns.filter(
+    (g) => referencedGodownIds.has(g._id) && !godowns.some((gd) => gd._id === g._id)
+  );
+  const godownDropdownOptions = missingGodowns.length ? [...godowns, ...missingGodowns] : godowns;
 
   const selectedItem = items.find((i) => i._id === selectedItemId) || allItems.find((i) => i._id === selectedItemId) || null;
 
@@ -585,7 +610,10 @@ export default function AddSalePage() {
       key: "godown",
       header: "Godown",
       accessor: (l: Line) => {
-        const g = godowns.find((gd) => gd._id === l.godownId);
+        // allGodowns, not the active-only `godowns` — a line can reference a
+        // godown that's since been deactivated, and this grid row must still
+        // show its real name instead of silently falling back to "-".
+        const g = allGodowns.find((gd) => gd._id === l.godownId);
         return g ? godownLabel(g) : "-";
       },
     },
@@ -633,7 +661,7 @@ export default function AddSalePage() {
                   <td className="relative z-[70]">
                     <div className="w-64">
                       <Select
-                        options={customers.map((c) => ({ value: c._id, label: c.name }))}
+                        options={customerDropdownOptions.map((c) => ({ value: c._id, label: c.name }))}
                         value={customerId}
                         onChange={setCustomerId}
                         className={selectClass}
@@ -757,7 +785,7 @@ export default function AddSalePage() {
                   <td className={rowLabel}>Godown <span className="text-red-500 font-bold">*</span></td>
                   <td className="relative z-[54]">
                     <Select
-                      options={godowns.map((g) => ({ value: g._id, label: godownLabel(g) }))}
+                      options={godownDropdownOptions.map((g) => ({ value: g._id, label: godownLabel(g) }))}
                       value={godownId}
                       onChange={setGodownId}
                       className={selectClass}

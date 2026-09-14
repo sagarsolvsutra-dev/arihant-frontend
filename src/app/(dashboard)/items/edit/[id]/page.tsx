@@ -481,9 +481,19 @@ export default function EditItemPage() {
     // truthy in JS, so leaving these at their default "0" silently passed
     // validation despite the required red asterisk, creating an item with zero
     // pricing. Compare the parsed numeric value instead, matching the Packing check.
-    if (!purchaseRate || parseFloat(purchaseRate) <= 0) newErrors.purchaseRate = "Purchase Rate is required";
-    if (!salesRateRetailer || parseFloat(salesRateRetailer) <= 0) newErrors.salesRateRetailer = "Sale Rate is required";
-    if (!mrp || parseFloat(mrp) <= 0) newErrors.mrp = "M.R.P. is required";
+    //
+    // Only required when there's no MRP entry committed to the grid yet
+    // (mrpEntries.length === 0) — handleSave's own finalMrpEntries logic uses
+    // these raw fields ONLY as a fallback when the grid is empty; once "Add"
+    // commits an entry, handleAddMrpEntry resets these fields back to "0",
+    // and validating them unconditionally meant saving a real multi-MRP item
+    // always failed with a false "required" error even with a valid entry
+    // already in mrpEntries. See items/add/page.tsx's identical fix.
+    if (mrpEntries.length === 0) {
+      if (!purchaseRate || parseFloat(purchaseRate) <= 0) newErrors.purchaseRate = "Purchase Rate is required";
+      if (!salesRateRetailer || parseFloat(salesRateRetailer) <= 0) newErrors.salesRateRetailer = "Sale Rate is required";
+      if (!mrp || parseFloat(mrp) <= 0) newErrors.mrp = "M.R.P. is required";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

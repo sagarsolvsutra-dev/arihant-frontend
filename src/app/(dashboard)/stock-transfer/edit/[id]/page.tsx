@@ -87,6 +87,8 @@ export default function EditStockTransferPage() {
   // Unfiltered — see purchase/add/page.tsx for why this exists alongside `items`.
   const [allItems, setAllItems] = useState<ItemRecord[]>([]);
   const [godowns, setGodowns] = useState<{ _id: string; name: string; godownGroupId?: { _id: string; name: string } | string | null }[]>([]);
+  // Unfiltered — see allItems above for why this exists alongside `godowns`.
+  const [allGodowns, setAllGodowns] = useState<{ _id: string; name: string; godownGroupId?: { _id: string; name: string } | string | null }[]>([]);
 
   // Header
   const [transferNo, setTransferNo] = useState("");
@@ -114,6 +116,7 @@ export default function EditStockTransferPage() {
     });
     godownService.getGodowns(companyId, 1, 1000).then((res: any) => {
       const list = res.data || res || [];
+      setAllGodowns(list);
       setGodowns(list.filter((g: any) => g.isActive !== false));
     });
   }, [companyId]);
@@ -156,6 +159,21 @@ export default function EditStockTransferPage() {
       ? allItems.find((i) => i._id === selectedItemId)
       : undefined;
   const itemDropdownOptions = selectedItemFallback ? [...items, selectedItemFallback] : items;
+
+  // Same fallback as items, applied to the header-level From/To Godown selects — each
+  // is its own single value here (not per-line, unlike the other 4 transactional
+  // modules), so each gets its own injected fallback option.
+  const selectedFromGodownFallback =
+    fromGodownId && !godowns.some((g) => g._id === fromGodownId)
+      ? allGodowns.find((g) => g._id === fromGodownId)
+      : undefined;
+  const fromGodownDropdownOptions = selectedFromGodownFallback ? [...godowns, selectedFromGodownFallback] : godowns;
+
+  const selectedToGodownFallback =
+    toGodownId && !godowns.some((g) => g._id === toGodownId)
+      ? allGodowns.find((g) => g._id === toGodownId)
+      : undefined;
+  const toGodownDropdownOptions = selectedToGodownFallback ? [...godowns, selectedToGodownFallback] : godowns;
 
   const selectedItem = items.find((i) => i._id === selectedItemId) || allItems.find((i) => i._id === selectedItemId) || null;
   const activeRateEntries = (selectedItem?.mrpEntries || []).filter((e) => e.mrpActive !== false);
@@ -424,7 +442,7 @@ export default function EditStockTransferPage() {
                   <td className={rowLabel}>From Godown <span className="text-red-500 font-bold">*</span></td>
                   <td className="relative z-[62]">
                     <Select
-                      options={godowns.map((g) => ({ value: g._id, label: godownLabel(g) }))}
+                      options={fromGodownDropdownOptions.map((g) => ({ value: g._id, label: godownLabel(g) }))}
                       value={fromGodownId}
                       onChange={setFromGodownId}
                       className={selectClass}
@@ -436,7 +454,7 @@ export default function EditStockTransferPage() {
                   <td className={rowLabel}>To Godown <span className="text-red-500 font-bold">*</span></td>
                   <td className="relative z-[61]">
                     <Select
-                      options={godowns.map((g) => ({ value: g._id, label: godownLabel(g) }))}
+                      options={toGodownDropdownOptions.map((g) => ({ value: g._id, label: godownLabel(g) }))}
                       value={toGodownId}
                       onChange={setToGodownId}
                       className={selectClass}

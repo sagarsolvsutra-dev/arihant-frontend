@@ -307,7 +307,7 @@ export default function CompaniesPage() {
         const adminPayload: any = {};
         if (form.adminName) adminPayload.name = form.adminName;
         if (form.adminEmail) adminPayload.email = form.adminEmail;
-        if (form.adminPhone !== undefined) adminPayload.phone = form.adminPhone;
+        if (form.adminPhone) adminPayload.phone = form.adminPhone;
         if (form.adminPassword) adminPayload.password = form.adminPassword;
 
         await companyService.updateCompany(editingCompany._id, {
