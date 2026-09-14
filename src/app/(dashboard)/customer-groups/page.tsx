@@ -13,6 +13,7 @@ import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { customerGroupService } from "@/services/customerGroupService";
 import { toast } from "@/lib/toast";
+import { canAction } from "@/lib/permissions";
 
 interface CustomerGroupRecord {
   id: string;
@@ -185,8 +186,8 @@ setGroups([]);
       header: "ACTIONS",
       accessor: (row: CustomerGroupRecord) => (
         <div className="flex items-center justify-center gap-2">
-          <EditButton onClick={() => handleEditClick(row)} />
-          <DeleteButton onClick={() => handleDeleteClick(row)} />
+          {canAction("customerGroups", "edit") && <EditButton onClick={() => handleEditClick(row)} />}
+          {canAction("customerGroups", "delete") && <DeleteButton onClick={() => handleDeleteClick(row)} />}
         </div>
       ),
       className: "w-[20%] text-center",
@@ -226,17 +227,19 @@ setGroups([]);
           <Button variant="outline" size="sm" onClick={() => exportListService.exportList("customer-groups", selectedCompanyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
             Excel
           </Button>
-          <Button
-            onClick={() => {
-              resetForm();
-              setIsFormOpen(true);
-            }}
-            size="sm"
-            leftIcon={<Plus size={14} />}
-            className="btn-primary !px-3 !py-1.5"
-          >
-            Add Customer Group
-          </Button>
+          {canAction("customerGroups", "create") && (
+            <Button
+              onClick={() => {
+                resetForm();
+                setIsFormOpen(true);
+              }}
+              size="sm"
+              leftIcon={<Plus size={14} />}
+              className="btn-primary !px-3 !py-1.5"
+            >
+              Add Customer Group
+            </Button>
+          )}
         </div>
       </div>
 

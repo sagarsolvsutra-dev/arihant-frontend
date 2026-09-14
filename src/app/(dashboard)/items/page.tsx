@@ -12,6 +12,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { itemService } from "@/services/itemService";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
+import { canAction } from "@/lib/permissions";
 
 interface ItemRecord {
   id?: string;
@@ -159,8 +160,8 @@ export default function ItemsPage() {
       header: "Actions",
       accessor: (r: ItemRecord) => (
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-          <EditButton onClick={() => router.push(`/items/edit/${r._id}`)} />
-          <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
+          {canAction("items", "edit") && <EditButton onClick={() => router.push(`/items/edit/${r._id}`)} />}
+          {canAction("items", "delete") && <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />}
         </div>
       ),
     },
@@ -188,9 +189,11 @@ export default function ItemsPage() {
           <Button variant="outline" size="sm" onClick={() => exportListService.exportList("items", companyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
             Excel
           </Button>
-          <Button onClick={() => router.push("/items/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
-            Add Item
-          </Button>
+          {canAction("items", "create") && (
+            <Button onClick={() => router.push("/items/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
+              Add Item
+            </Button>
+          )}
         </div>
       </div>
 

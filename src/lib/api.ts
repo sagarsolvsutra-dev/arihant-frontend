@@ -16,6 +16,9 @@ export const API_ENDPOINTS = {
   // Users
   USERS: `${API_BASE_URL}/users`,
 
+  // Dashboard
+  DASHBOARD: `${API_BASE_URL}/dashboard`,
+
   // Masters
   GODOWNS: `${API_BASE_URL}/godowns`,
   GODOWN_GROUPS: `${API_BASE_URL}/godown-groups`,

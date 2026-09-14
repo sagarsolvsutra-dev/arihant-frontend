@@ -14,6 +14,7 @@ import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { schemeService } from "@/services/schemeService";
 import { toast } from "@/lib/toast";
+import { canAction } from "@/lib/permissions";
 
 interface SchemeRecord {
   id?: string;
@@ -103,8 +104,8 @@ export default function SchemesPage() {
       header: "Actions",
       accessor: (r: SchemeRecord) => (
         <div className="flex gap-2">
-          <EditButton onClick={() => openEdit(r)} />
-          <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
+          {canAction("schemes", "edit") && <EditButton onClick={() => openEdit(r)} />}
+          {canAction("schemes", "delete") && <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />}
         </div>
       ),
     },
@@ -132,9 +133,11 @@ export default function SchemesPage() {
           <Button variant="outline" size="sm" onClick={() => exportListService.exportList("schemes", companyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
             Excel
           </Button>
-          <Button onClick={openAdd} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
-            Add Scheme
-          </Button>
+          {canAction("schemes", "create") && (
+            <Button onClick={openAdd} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
+              Add Scheme
+            </Button>
+          )}
         </div>
       </div>
 

@@ -13,6 +13,7 @@ import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { godownGroupService } from "@/services/godownGroupService";
 import { toast } from "@/lib/toast";
+import { canAction } from "@/lib/permissions";
 
 interface GodownGroupRecord {
   id: string;
@@ -171,8 +172,8 @@ export default function GodownGroupsPage() {
       header: "ACTIONS",
       accessor: (row: GodownGroupRecord) => (
         <div className="flex items-center justify-center gap-2">
-          <EditButton onClick={() => handleEditClick(row)} />
-          <DeleteButton onClick={() => handleDeleteClick(row)} />
+          {canAction("godownGroups", "edit") && <EditButton onClick={() => handleEditClick(row)} />}
+          {canAction("godownGroups", "delete") && <DeleteButton onClick={() => handleDeleteClick(row)} />}
         </div>
       ),
       className: "w-24 text-center",
@@ -211,17 +212,19 @@ export default function GodownGroupsPage() {
           <Button variant="outline" size="sm" onClick={() => exportListService.exportList("godown-groups", selectedCompanyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
             Excel
           </Button>
-          <Button
-            onClick={() => {
-              resetForm();
-              setIsFormOpen(true);
-            }}
-            size="sm"
-            leftIcon={<Plus size={14} />}
-            className="btn-primary !px-3 !py-1.5"
-          >
-            Add Godown Group
-          </Button>
+          {canAction("godownGroups", "create") && (
+            <Button
+              onClick={() => {
+                resetForm();
+                setIsFormOpen(true);
+              }}
+              size="sm"
+              leftIcon={<Plus size={14} />}
+              className="btn-primary !px-3 !py-1.5"
+            >
+              Add Godown Group
+            </Button>
+          )}
         </div>
       </div>
 

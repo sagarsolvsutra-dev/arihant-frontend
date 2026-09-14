@@ -16,6 +16,7 @@ import { supplierService } from "@/services/supplierService";
 import { itemNameService } from "@/services/itemNameService";
 import { itemSubGroupService } from "@/services/itemSubGroupService";
 import { toast } from "@/lib/toast";
+import { canAction } from "@/lib/permissions";
 
 interface ItemSubGroup {
   _id: string;
@@ -243,8 +244,8 @@ export default function ItemSubGroupsPage() {
       header: "Actions",
       accessor: (r: ItemSubGroup) => (
         <div className="flex gap-2">
-          <EditButton onClick={() => openEdit(r)} />
-          <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
+          {canAction("itemSubGroups", "edit") && <EditButton onClick={() => openEdit(r)} />}
+          {canAction("itemSubGroups", "delete") && <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />}
         </div>
       ),
     },
@@ -275,9 +276,11 @@ export default function ItemSubGroupsPage() {
           <Button variant="outline" size="sm" onClick={() => exportListService.exportList("item-sub-groups", companyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
             Excel
           </Button>
-          <Button onClick={openAdd} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
-            Add Sub Group
-          </Button>
+          {canAction("itemSubGroups", "create") && (
+            <Button onClick={openAdd} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
+              Add Sub Group
+            </Button>
+          )}
         </div>
       </div>
 

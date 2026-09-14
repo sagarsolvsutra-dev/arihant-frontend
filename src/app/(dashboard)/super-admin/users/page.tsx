@@ -24,7 +24,8 @@ import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { Table } from "@/components/ui/Table";
-
+import { PermissionMatrix } from "@/components/ui/PermissionMatrix";
+import { PermissionsMap } from "@/lib/permissions";
 
 import { companyService } from "@/services/companyService";
 import { userService } from "@/services/userService";
@@ -65,6 +66,8 @@ export default function UsersPage() {
     phone: "",
     password: "",
     companyId: "",
+    role: "company_admin" as "company_admin" | "staff",
+    permissions: {} as PermissionsMap,
   });
   const [addErrors, setAddErrors] = useState<Record<string, string>>({});
   const [addSubmitting, setAddSubmitting] = useState(false);
@@ -161,33 +164,43 @@ export default function UsersPage() {
     return Object.keys(errs).length === 0;
   };
 
+  const resetAddForm = () => {
+    setAddForm({
+      name: "",
+      email: "",
+      phone: "",
+      password: "",
+      companyId: "",
+      role: "company_admin",
+      permissions: {},
+    });
+  };
+
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateAdd()) return;
 
     setAddSubmitting(true);
-    const token = localStorage.getItem("token");
     try {
-      const payload = {
+      const payload: any = {
         name: addForm.name,
         email: addForm.email,
         phone: addForm.phone || undefined,
         password: addForm.password,
-        role: "company_admin",
+        role: addForm.role,
         companyId: addForm.companyId,
       };
+      // permissions only means anything for a staff account — company_admin
+      // bypasses the whole permission system regardless of what's stored
+      // (see CLAUDE.md's Staff & Permissions section), so there's no reason
+      // to send it along for that role.
+      if (addForm.role === "staff") payload.permissions = addForm.permissions;
 
       await userService.createUser(payload);
 
-      toast.success(`${addForm.name} created as Company Admin`);
+      toast.success(`${addForm.name} created as ${addForm.role === "staff" ? "Staff" : "Company Admin"}`);
       setShowAddDialog(false);
-      setAddForm({
-        name: "",
-        email: "",
-        phone: "",
-        password: "",
-        companyId: "",
-      });
+      resetAddForm();
       setAddErrors({});
       await fetchUsers();
     } catch (err: any) {
@@ -414,11 +427,29 @@ export default function UsersPage() {
           setAddErrors({});
         }}
         title="Add New User"
-        size="md"
-        overflowVisible
+        size={addForm.role === "staff" ? "lg" : "md"}
       >
         <form onSubmit={handleAddAdmin} className="space-y-4" autoComplete="off">
           <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                Role <span className="text-red-500">*</span>
+              </label>
+              <div className="inline-flex items-center bg-gray-100 border border-gray-200 rounded-lg p-1 w-full">
+                {(["company_admin", "staff"] as const).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setAddForm({ ...addForm, role: r })}
+                    className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                      addForm.role === r ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    {r === "company_admin" ? "Company Admin" : "Staff"}
+                  </button>
+                ))}
+              </div>
+            </div>
             <Input
               label="Full Name"
               isRequired
@@ -429,6 +460,9 @@ export default function UsersPage() {
               name="new-admin-name"
               autoComplete="off"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <Input
               label="Phone"
               placeholder="10-digit phone"
@@ -443,6 +477,19 @@ export default function UsersPage() {
               maxLength={10}
               name="new-admin-phone"
               autoComplete="off"
+            />
+            <Select
+              label="Company"
+              isRequired
+              placeholder={
+                activeCompanyOptions.length === 0
+                  ? "No active companies available"
+                  : "Select company..."
+              }
+              options={activeCompanyOptions}
+              selectedValue={addForm.companyId}
+              onChange={(val) => setAddForm({ ...addForm, companyId: val })}
+              error={addErrors.companyId}
             />
           </div>
 
@@ -483,19 +530,12 @@ export default function UsersPage() {
             </button>
           </div>
 
-          <Select
-            label="Company"
-            isRequired
-            placeholder={
-              activeCompanyOptions.length === 0
-                ? "No active companies available"
-                : "Select company..."
-            }
-            options={activeCompanyOptions}
-            selectedValue={addForm.companyId}
-            onChange={(val) => setAddForm({ ...addForm, companyId: val })}
-            error={addErrors.companyId}
-          />
+          {addForm.role === "staff" && (
+            <PermissionMatrix
+              permissions={addForm.permissions}
+              onChange={(next) => setAddForm({ ...addForm, permissions: next })}
+            />
+          )}
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
             <Button

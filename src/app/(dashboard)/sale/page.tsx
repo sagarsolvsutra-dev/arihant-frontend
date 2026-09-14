@@ -16,6 +16,7 @@ import { itemService } from "@/services/itemService";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
 import { formatDate } from "@/lib/date";
+import { canAction } from "@/lib/permissions";
 
 interface SaleRecord {
   _id: string;
@@ -183,8 +184,8 @@ export default function SaleListPage() {
       header: "Actions",
       accessor: (r: SaleRecord) => (
         <div className="flex gap-2">
-          <EditButton onClick={() => router.push(`/sale/edit/${r._id}`)} />
-          <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
+          {canAction("sale", "edit") && <EditButton onClick={() => router.push(`/sale/edit/${r._id}`)} />}
+          {canAction("sale", "delete") && <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />}
         </div>
       ),
     },
@@ -205,9 +206,11 @@ export default function SaleListPage() {
           <h1 className="text-lg font-bold text-gray-900">Sell (વેચાણ)</h1>
           <p className="text-xs text-gray-500 mt-0.5">Manage sale invoices</p>
         </div>
-        <Button onClick={() => router.push("/sale/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
-          Add Sale
-        </Button>
+        {canAction("sale", "create") && (
+          <Button onClick={() => router.push("/sale/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
+            Add Sale
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">

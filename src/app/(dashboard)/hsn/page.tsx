@@ -14,6 +14,7 @@ import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { hsnService } from "@/services/hsnService";
 import { toast } from "@/lib/toast";
+import { canAction } from "@/lib/permissions";
 
 interface HsnCodeRecord {
   id: string;
@@ -263,8 +264,8 @@ setHsnCodes([]);
       align: "center" as const,
       render: (row: HsnCodeRecord) => (
         <div className="flex items-center justify-center gap-1">
-          <EditButton onClick={() => handleEditClick(row)} />
-          <DeleteButton onClick={() => handleDeleteClick(row)} />
+          {canAction("hsn", "edit") && <EditButton onClick={() => handleEditClick(row)} />}
+          {canAction("hsn", "delete") && <DeleteButton onClick={() => handleDeleteClick(row)} />}
         </div>
       ),
     },
@@ -299,17 +300,19 @@ setHsnCodes([]);
           <Button variant="outline" size="sm" onClick={() => exportListService.exportList("hsn", selectedCompanyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
             Excel
           </Button>
-          <Button
-            onClick={() => {
-              resetForm();
-              setIsFormOpen(true);
-            }}
-            size="sm"
-            leftIcon={<Plus size={14} />}
-            className="btn-primary !px-3 !py-1.5"
-          >
-            Add HSN Code
-          </Button>
+          {canAction("hsn", "create") && (
+            <Button
+              onClick={() => {
+                resetForm();
+                setIsFormOpen(true);
+              }}
+              size="sm"
+              leftIcon={<Plus size={14} />}
+              className="btn-primary !px-3 !py-1.5"
+            >
+              Add HSN Code
+            </Button>
+          )}
         </div>
       </div>
 

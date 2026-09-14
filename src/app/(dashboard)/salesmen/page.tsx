@@ -13,6 +13,7 @@ import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { salesmanService } from "@/services/salesmanService";
 import { toast } from "@/lib/toast";
+import { canAction } from "@/lib/permissions";
 
 interface SalesmanRecord {
   id?: string;
@@ -172,8 +173,8 @@ export default function SalesmenPage() {
       header: "Actions",
       accessor: (r: SalesmanRecord) => (
         <div className="flex gap-2">
-          <EditButton onClick={() => openEdit(r)} />
-          <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
+          {canAction("salesmen", "edit") && <EditButton onClick={() => openEdit(r)} />}
+          {canAction("salesmen", "delete") && <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />}
         </div>
       ),
     },
@@ -201,9 +202,11 @@ export default function SalesmenPage() {
           <Button variant="outline" size="sm" onClick={() => exportListService.exportList("salesmen", companyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
             Excel
           </Button>
-          <Button onClick={openAdd} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
-            Add Salesman
-          </Button>
+          {canAction("salesmen", "create") && (
+            <Button onClick={openAdd} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
+              Add Salesman
+            </Button>
+          )}
         </div>
       </div>
 

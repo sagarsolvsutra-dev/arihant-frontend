@@ -16,6 +16,7 @@ import { itemService } from "@/services/itemService";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
 import { formatDate } from "@/lib/date";
+import { canAction } from "@/lib/permissions";
 
 interface PurchaseRecord {
   _id: string;
@@ -171,8 +172,8 @@ export default function PurchaseListPage() {
       header: "Actions",
       accessor: (r: PurchaseRecord) => (
         <div className="flex gap-2">
-          <EditButton onClick={() => router.push(`/purchase/edit/${r._id}`)} />
-          <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
+          {canAction("purchase", "edit") && <EditButton onClick={() => router.push(`/purchase/edit/${r._id}`)} />}
+          {canAction("purchase", "delete") && <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />}
         </div>
       ),
     },
@@ -193,9 +194,11 @@ export default function PurchaseListPage() {
           <h1 className="text-lg font-bold text-gray-900">Purchase</h1>
           <p className="text-xs text-gray-500 mt-0.5">Manage purchase invoices</p>
         </div>
-        <Button onClick={() => router.push("/purchase/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
-          Add Purchase
-        </Button>
+        {canAction("purchase", "create") && (
+          <Button onClick={() => router.push("/purchase/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
+            Add Purchase
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">

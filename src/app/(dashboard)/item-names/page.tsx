@@ -15,6 +15,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { itemNameService } from "@/services/itemNameService";
 import { supplierService } from "@/services/supplierService";
 import { toast } from "@/lib/toast";
+import { canAction } from "@/lib/permissions";
 
 interface ItemNameRecord {
   id: string;
@@ -215,8 +216,8 @@ setRecords([]);
       header: "ACTIONS",
       accessor: (row: ItemNameRecord) => (
         <div className="flex items-center justify-center gap-2">
-          <EditButton onClick={() => handleEditClick(row)} />
-          <DeleteButton onClick={() => handleDeleteClick(row)} />
+          {canAction("itemNames", "edit") && <EditButton onClick={() => handleEditClick(row)} />}
+          {canAction("itemNames", "delete") && <DeleteButton onClick={() => handleDeleteClick(row)} />}
         </div>
       ),
       className: "w-[18%] text-center",
@@ -255,17 +256,19 @@ setRecords([]);
           <Button variant="outline" size="sm" onClick={() => exportListService.exportList("item-names", selectedCompanyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
             Excel
           </Button>
-          <Button
-            onClick={() => {
-              resetForm();
-              setIsFormOpen(true);
-            }}
-            size="sm"
-            leftIcon={<Plus size={14} />}
-            className="btn-primary !px-3 !py-1.5"
-          >
-            Add Item Name
-          </Button>
+          {canAction("itemNames", "create") && (
+            <Button
+              onClick={() => {
+                resetForm();
+                setIsFormOpen(true);
+              }}
+              size="sm"
+              leftIcon={<Plus size={14} />}
+              className="btn-primary !px-3 !py-1.5"
+            >
+              Add Item Name
+            </Button>
+          )}
         </div>
       </div>
 

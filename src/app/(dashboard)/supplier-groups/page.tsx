@@ -13,6 +13,7 @@ import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { supplierGroupService } from "@/services/supplierGroupService";
 import { toast } from "@/lib/toast";
+import { canAction } from "@/lib/permissions";
 
 interface SupplierGroupRecord {
   id: string;
@@ -174,8 +175,8 @@ setGroups([]);
       header: "ACTIONS",
       accessor: (row: SupplierGroupRecord) => (
         <div className="flex items-center justify-center gap-2">
-          <EditButton onClick={() => handleEditClick(row)} />
-          <DeleteButton onClick={() => handleDeleteClick(row)} />
+          {canAction("supplierGroups", "edit") && <EditButton onClick={() => handleEditClick(row)} />}
+          {canAction("supplierGroups", "delete") && <DeleteButton onClick={() => handleDeleteClick(row)} />}
         </div>
       ),
       className: "w-24 text-center",
@@ -215,17 +216,19 @@ setGroups([]);
           <Button variant="outline" size="sm" onClick={() => exportListService.exportList("supplier-groups", selectedCompanyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
             Excel
           </Button>
-          <Button
-            onClick={() => {
-              resetForm();
-              setIsFormOpen(true);
-            }}
-            size="sm"
-            leftIcon={<Plus size={14} />}
-            className="btn-primary !px-3 !py-1.5"
-          >
-            Add Supplier Group
-          </Button>
+          {canAction("supplierGroups", "create") && (
+            <Button
+              onClick={() => {
+                resetForm();
+                setIsFormOpen(true);
+              }}
+              size="sm"
+              leftIcon={<Plus size={14} />}
+              className="btn-primary !px-3 !py-1.5"
+            >
+              Add Supplier Group
+            </Button>
+          )}
         </div>
       </div>
 

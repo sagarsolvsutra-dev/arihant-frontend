@@ -17,6 +17,7 @@ import { API_ENDPOINTS } from "@/lib/api";
 import { downloadFile } from "@/lib/download";
 import { toast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
+import { canAction } from "@/lib/permissions";
 
 const EXPORT_TYPES = [
   { value: "", label: "All Types" },
@@ -208,8 +209,8 @@ export default function GodownsPage() {
       header: "Actions",
       accessor: (r: GodownRecord) => (
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-          <EditButton onClick={() => openEdit(r)} />
-          <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
+          {canAction("godowns", "edit") && <EditButton onClick={() => openEdit(r)} />}
+          {canAction("godowns", "delete") && <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />}
         </div>
       ),
     },
@@ -234,9 +235,11 @@ export default function GodownsPage() {
           <Button variant="outline" size="sm" onClick={loadRecords} className="px-2.5 hover:bg-gray-50" title="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button onClick={openAdd} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
-            Add Godown
-          </Button>
+          {canAction("godowns", "create") && (
+            <Button onClick={openAdd} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
+              Add Godown
+            </Button>
+          )}
         </div>
       </div>
 

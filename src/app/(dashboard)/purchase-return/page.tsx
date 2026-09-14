@@ -16,6 +16,7 @@ import { itemService } from "@/services/itemService";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
 import { formatDate } from "@/lib/date";
+import { canAction } from "@/lib/permissions";
 
 interface PurchaseReturnRecord {
   _id: string;
@@ -183,8 +184,8 @@ export default function PurchaseReturnListPage() {
       header: "Actions",
       accessor: (r: PurchaseReturnRecord) => (
         <div className="flex gap-2">
-          <EditButton onClick={() => router.push(`/purchase-return/edit/${r._id}`)} />
-          <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
+          {canAction("purchaseReturn", "edit") && <EditButton onClick={() => router.push(`/purchase-return/edit/${r._id}`)} />}
+          {canAction("purchaseReturn", "delete") && <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />}
         </div>
       ),
     },
@@ -205,9 +206,11 @@ export default function PurchaseReturnListPage() {
           <h1 className="text-lg font-bold text-gray-900">Purchase Return</h1>
           <p className="text-xs text-gray-500 mt-0.5">Manage purchase return invoices</p>
         </div>
-        <Button onClick={() => router.push("/purchase-return/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
-          Add Purchase Return
-        </Button>
+        {canAction("purchaseReturn", "create") && (
+          <Button onClick={() => router.push("/purchase-return/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
+            Add Purchase Return
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">

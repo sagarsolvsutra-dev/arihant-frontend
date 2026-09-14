@@ -13,6 +13,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { openingBillService } from "@/services/openingBillService";
 import { useRouter } from "next/navigation";
 import { formatDate } from "@/lib/date";
+import { canAction } from "@/lib/permissions";
 
 interface OpeningBillRecord {
   id?: string;
@@ -101,8 +102,8 @@ export default function PurchaseOpeningBillsPage() {
       header: "Actions",
       accessor: (r: OpeningBillRecord) => (
         <div className="flex gap-2">
-          <EditButton onClick={() => router.push(`/opening-bills/purchase/edit/${r._id}`)} />
-          <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
+          {canAction("openingBills", "edit") && <EditButton onClick={() => router.push(`/opening-bills/purchase/edit/${r._id}`)} />}
+          {canAction("openingBills", "delete") && <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />}
         </div>
       ),
     },
@@ -127,9 +128,11 @@ export default function PurchaseOpeningBillsPage() {
           <Button variant="outline" size="sm" onClick={loadRecords} className="px-2.5 hover:bg-gray-50" title="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button onClick={() => router.push("/opening-bills/purchase/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
-            Add Bill
-          </Button>
+          {canAction("openingBills", "create") && (
+            <Button onClick={() => router.push("/opening-bills/purchase/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
+              Add Bill
+            </Button>
+          )}
         </div>
       </div>
 

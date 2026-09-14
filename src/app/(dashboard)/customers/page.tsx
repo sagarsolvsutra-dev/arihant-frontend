@@ -13,6 +13,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { customerService } from "@/services/customerService";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
+import { canAction } from "@/lib/permissions";
 
 interface CustomerRecord {
   id?: string;
@@ -169,8 +170,8 @@ export default function CustomersPage() {
       accessor: (r: CustomerRecord) => (
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
           <LedgerButton onClick={() => router.push(`/customers/ledger/${r._id}`)} />
-          <EditButton onClick={() => router.push(`/customers/edit/${r._id}`)} />
-          <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
+          {canAction("customers", "edit") && <EditButton onClick={() => router.push(`/customers/edit/${r._id}`)} />}
+          {canAction("customers", "delete") && <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />}
         </div>
       ),
     },
@@ -198,9 +199,11 @@ export default function CustomersPage() {
           <Button variant="outline" size="sm" onClick={() => exportListService.exportList("customers", companyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
             Excel
           </Button>
-          <Button onClick={() => router.push("/customers/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
-            Add Customer
-          </Button>
+          {canAction("customers", "create") && (
+            <Button onClick={() => router.push("/customers/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
+              Add Customer
+            </Button>
+          )}
         </div>
       </div>
 

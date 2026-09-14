@@ -21,15 +21,37 @@ import {
   X,
   RotateCcw,
   ArrowLeftRight,
+  UserCog,
 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { formatDate } from "@/lib/date";
+import { can, PermissionsMap, PermissionModule } from "@/lib/permissions";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
+
+// Each master-data page is its own separately-grantable permission module
+// now (see lib/permissions.ts's history note) — every link here is gated on
+// its own moduleKey's "view" grant, not one shared "masters" flag.
+const MASTER_LINKS: { label: string; href: string; moduleKey: PermissionModule }[] = [
+  { label: "Suppliers", href: "/suppliers", moduleKey: "suppliers" },
+  { label: "Supplier Groups", href: "/supplier-groups", moduleKey: "supplierGroups" },
+  { label: "Godowns", href: "/godowns", moduleKey: "godowns" },
+  { label: "Godown Groups", href: "/godown-groups", moduleKey: "godownGroups" },
+  { label: "Items / M.R.Ps.", href: "/items", moduleKey: "items" },
+  { label: "HSN Codes", href: "/hsn", moduleKey: "hsn" },
+  { label: "Item Names", href: "/item-names", moduleKey: "itemNames" },
+  { label: "Item Sub Groups", href: "/item-sub-groups", moduleKey: "itemSubGroups" },
+  { label: "Customers", href: "/customers", moduleKey: "customers" },
+  { label: "Customer Groups", href: "/customer-groups", moduleKey: "customerGroups" },
+  { label: "Salesmans", href: "/salesmen", moduleKey: "salesmen" },
+  { label: "Schemes", href: "/schemes", moduleKey: "schemes" },
+  { label: "Opening Pending of Sale Bill", href: "/opening-bills/sale", moduleKey: "openingBills" },
+  { label: "Opening Pending of Purchase Bill", href: "/opening-bills/purchase", moduleKey: "openingBills" },
+];
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { activeCompany, companies, selectedCompanyId, setSelectedCompanyId, canSwitchCompany } = useCompany();
@@ -97,6 +119,21 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const isCompanyAdmin = user?.role === "company_admin";
   const isStaff = user?.role === "staff";
 
+  // Only meaningful for staff — company_admin always has full access
+  // regardless of what (if anything) is granted here. See CLAUDE.md's
+  // Staff & Permissions section / lib/permissions.ts for the canonical
+  // module list + per-module CRUD shape this must stay in sync with.
+  // Nav visibility is driven by "view" specifically — a staff member with
+  // e.g. sale.create but not sale.view still needs to be ABLE to open Sale
+  // to use that create permission, so "view" is really "can open this
+  // module's pages at all," not a narrower read-only distinction here.
+  const permissions: PermissionsMap = user?.permissions || {};
+  const hasPermission = (key: PermissionModule) => isCompanyAdmin || can(permissions, key, "view");
+  // Gates the Masters toggle button itself — shown if ANY master-data module
+  // is viewable, even though each individual link inside is gated on its own
+  // moduleKey (see MASTER_LINKS.filter above).
+  const hasAnyMasterPermission = isCompanyAdmin || MASTER_LINKS.some((l) => hasPermission(l.moduleKey));
+
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
@@ -163,8 +200,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         },
       ];
     }
-    // Company Admin & Staff both get Dashboard + Reports
-    const baseMenu = [
+    // Company Admin always sees every module (hasPermission short-circuits
+    // true for them); Staff only sees the modules they've actually been
+    // granted — built dynamically from `permissions` instead of the old
+    // hardcoded "staff gets Dashboard+Reports only, nothing else" menu.
+    const items = [
       {
         id: "ca-dashboard",
         label: "ડેસ્કટોપ (Dashboard)",
@@ -172,59 +212,76 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         icon: <LayoutDashboard className="h-5 w-5" />,
         href: "/dashboard",
       },
-      {
+    ];
+
+    if (hasPermission("purchase")) {
+      items.push({
+        id: "ca-purchase",
+        label: "Purchase (ખરીદ)",
+        englishLabel: "Purchase",
+        icon: <ShoppingBag className="h-5 w-5" />,
+        href: "/purchase",
+      });
+    }
+    if (hasPermission("sale")) {
+      items.push({
+        id: "ca-sell",
+        label: "Sell (વેચાણ)",
+        englishLabel: "Sell",
+        icon: <Tag className="h-5 w-5" />,
+        href: "/sale",
+      });
+    }
+    if (hasPermission("purchaseReturn")) {
+      items.push({
+        id: "ca-purchase-return",
+        label: "Purchase Return",
+        englishLabel: "Purchase Return",
+        icon: <RotateCcw className="h-5 w-5" />,
+        href: "/purchase-return",
+      });
+    }
+    if (hasPermission("saleReturn")) {
+      items.push({
+        id: "ca-sale-return",
+        label: "Sale Return",
+        englishLabel: "Sale Return",
+        icon: <RotateCcw className="h-5 w-5" />,
+        href: "/sale-return",
+      });
+    }
+    if (hasPermission("stockTransfer")) {
+      items.push({
+        id: "ca-stock-transfer",
+        label: "Stock Transfer",
+        englishLabel: "Stock Transfer",
+        icon: <ArrowLeftRight className="h-5 w-5" />,
+        href: "/stock-transfer",
+      });
+    }
+    if (hasPermission("reports")) {
+      items.push({
         id: "ca-reports",
         label: "રિપોર્ટ (Reports)",
         englishLabel: "Reports",
         icon: <FileText className="h-5 w-5" />,
         href: "/reports",
-      },
-    ];
-
-    // Company Admin gets additional modules
+      });
+    }
+    // Staff management is a company_admin-only capability, not a
+    // permission a company_admin can grant to staff — a staff member can
+    // never create/manage other staff, regardless of their permissions.
     if (isCompanyAdmin) {
-      return [
-        ...baseMenu.slice(0, 1),
-        {
-          id: "ca-purchase",
-          label: "Purchase (ખરીદ)",
-          englishLabel: "Purchase",
-          icon: <ShoppingBag className="h-5 w-5" />,
-          href: "/purchase",
-        },
-        {
-          id: "ca-sell",
-          label: "Sell (વેચાણ)",
-          englishLabel: "Sell",
-          icon: <Tag className="h-5 w-5" />,
-          href: "/sale",
-        },
-        {
-          id: "ca-purchase-return",
-          label: "Purchase Return",
-          englishLabel: "Purchase Return",
-          icon: <RotateCcw className="h-5 w-5" />,
-          href: "/purchase-return",
-        },
-        {
-          id: "ca-sale-return",
-          label: "Sale Return",
-          englishLabel: "Sale Return",
-          icon: <RotateCcw className="h-5 w-5" />,
-          href: "/sale-return",
-        },
-        {
-          id: "ca-stock-transfer",
-          label: "Stock Transfer",
-          englishLabel: "Stock Transfer",
-          icon: <ArrowLeftRight className="h-5 w-5" />,
-          href: "/stock-transfer",
-        },
-        baseMenu[1],
-      ];
+      items.push({
+        id: "ca-staff",
+        label: "સ્ટાફ (Staff)",
+        englishLabel: "Staff",
+        icon: <UserCog className="h-5 w-5" />,
+        href: "/staff",
+      });
     }
 
-    return baseMenu;
+    return items;
   };
 
   const menuItems = getMenuItems();
@@ -329,7 +386,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               <nav className="flex flex-col gap-2 px-3 overflow-y-auto max-h-[calc(100vh-180px)]">
                 {menuItems.map(renderMenuItem)}
 
-                {!isSuperAdmin && (
+                {!isSuperAdmin && hasAnyMasterPermission && (
                   <button
                     type="button"
                     onClick={() => setSidebarView("masters")}
@@ -374,22 +431,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
             {/* Masters Sub-menu list styled as screenshot */}
             <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2 bg-[#f9fafb]">
-              {[
-                { label: "Suppliers", href: "/suppliers" },
-                { label: "Supplier Groups", href: "/supplier-groups" },
-                { label: "Godowns", href: "/godowns" },
-                { label: "Godown Groups", href: "/godown-groups" },
-                { label: "Items / M.R.Ps.", href: "/items" },
-                { label: "HSN Codes", href: "/hsn" },
-                { label: "Item Names", href: "/item-names" },
-                { label: "Item Sub Groups", href: "/item-sub-groups" },
-                { label: "Customers", href: "/customers" },
-                { label: "Customer Groups", href: "/customer-groups" },
-                { label: "Salesmans", href: "/salesmen" },
-                { label: "Schemes", href: "/schemes" },
-                { label: "Opening Pending of Sale Bill", href: "/opening-bills/sale" },
-                { label: "Opening Pending of Purchase Bill", href: "/opening-bills/purchase" },
-              ].map((sub, idx) => {
+              {MASTER_LINKS.filter((sub) => hasPermission(sub.moduleKey)).map((sub, idx) => {
                 const isSubActive = pathname === sub.href || pathname.startsWith(`${sub.href}/`);
                 return (
                   <Link

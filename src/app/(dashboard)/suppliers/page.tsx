@@ -11,6 +11,7 @@ import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useCompany } from "@/context/CompanyContext";
 import { supplierService } from "@/services/supplierService";
 import { useRouter } from "next/navigation";
+import { canAction } from "@/lib/permissions";
 
 interface SupplierRecord {
   id?: string;
@@ -114,8 +115,8 @@ export default function SuppliersPage() {
       accessor: (r: SupplierRecord) => (
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
           <LedgerButton onClick={() => router.push(`/suppliers/ledger/${r._id}`)} />
-          <EditButton onClick={() => router.push(`/suppliers/edit/${r._id}`)} />
-          <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
+          {canAction("suppliers", "edit") && <EditButton onClick={() => router.push(`/suppliers/edit/${r._id}`)} />}
+          {canAction("suppliers", "delete") && <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />}
         </div>
       ),
     },
@@ -143,9 +144,11 @@ export default function SuppliersPage() {
           <Button variant="outline" size="sm" onClick={() => exportListService.exportList("suppliers", companyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
             Excel
           </Button>
-          <Button onClick={() => router.push("/suppliers/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
-            Add Supplier
-          </Button>
+          {canAction("suppliers", "create") && (
+            <Button onClick={() => router.push("/suppliers/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
+              Add Supplier
+            </Button>
+          )}
         </div>
       </div>
 

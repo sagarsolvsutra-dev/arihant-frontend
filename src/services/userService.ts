@@ -1,4 +1,5 @@
 import { API_ENDPOINTS } from "@/lib/api";
+import { PermissionsMap } from "@/lib/permissions";
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -40,6 +41,25 @@ export const userService = {
   deleteUser: (id: string) => {
     return request(`${USERS_API_URL}/${id}`, {
       method: "DELETE",
+    });
+  },
+  // Company-admin-only staff management (see CLAUDE.md's Staff & Permissions
+  // section) — createStaff/updateStaff always create/edit a role:"staff" user
+  // scoped to the caller's own company; the backend enforces both of those,
+  // never trusting anything the client sends for role/companyId.
+  createStaff: (payload: { name: string; email: string; phone?: string; password: string; permissions: PermissionsMap }) => {
+    return request(USERS_API_URL, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateStaff: (
+    id: string,
+    payload: { name?: string; phone?: string; password?: string; permissions?: PermissionsMap; isActive?: boolean }
+  ) => {
+    return request(`${USERS_API_URL}/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
     });
   },
 };

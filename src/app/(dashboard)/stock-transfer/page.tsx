@@ -16,6 +16,7 @@ import { itemService } from "@/services/itemService";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
 import { formatDate } from "@/lib/date";
+import { canAction } from "@/lib/permissions";
 
 interface StockTransferRecord {
   _id: string;
@@ -161,8 +162,8 @@ export default function StockTransferListPage() {
       header: "Actions",
       accessor: (r: StockTransferRecord) => (
         <div className="flex gap-2">
-          <EditButton onClick={() => router.push(`/stock-transfer/edit/${r._id}`)} />
-          <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />
+          {canAction("stockTransfer", "edit") && <EditButton onClick={() => router.push(`/stock-transfer/edit/${r._id}`)} />}
+          {canAction("stockTransfer", "delete") && <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />}
         </div>
       ),
     },
@@ -183,9 +184,11 @@ export default function StockTransferListPage() {
           <h1 className="text-lg font-bold text-gray-900">Stock Transfer</h1>
           <p className="text-xs text-gray-500 mt-0.5">Move stock directly from one godown to another</p>
         </div>
-        <Button onClick={() => router.push("/stock-transfer/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
-          Add Stock Transfer
-        </Button>
+        {canAction("stockTransfer", "create") && (
+          <Button onClick={() => router.push("/stock-transfer/add")} size="sm" leftIcon={<Plus size={14} />} className="btn-primary !px-3 !py-1.5">
+            Add Stock Transfer
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
