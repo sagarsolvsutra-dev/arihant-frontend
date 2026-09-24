@@ -5,6 +5,8 @@ import { toast } from "@/lib/toast";
 export interface ExportListParams {
   dateFrom?: string;
   dateTo?: string;
+  format?: "excel" | "pdf";
+  search?: string;
 }
 
 export const exportListService = {
@@ -12,8 +14,12 @@ export const exportListService = {
     const query = new URLSearchParams({ companyId });
     if (params.dateFrom) query.set("dateFrom", params.dateFrom);
     if (params.dateTo) query.set("dateTo", params.dateTo);
+    if (params.format) query.set("format", params.format);
+    if (params.search) query.set("search", params.search);
+    
+    const ext = params.format === "pdf" ? "pdf" : "xlsx";
     try {
-      await downloadFile(`${API_ENDPOINTS.EXPORT_LIST}/${resource}?${query.toString()}`, `${resource}.xlsx`);
+      await downloadFile(`${API_ENDPOINTS.EXPORT_LIST}/${resource}?${query.toString()}`, `${resource}.${ext}`);
     } catch (err: any) {
       toast.error(err.message || "Failed to export");
     }

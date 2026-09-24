@@ -168,7 +168,7 @@ export default function SaleReturnReportPage() {
         </div>
         <Button
           variant="outline"
-          size="sm"
+          
           onClick={() => reportService.exportReport("sale-returns", { companyId: selectedCompanyId, search, dateFrom, dateTo, itemId, godownId, customerId, condition })}
           leftIcon={<FileSpreadsheet size={14} />}
         >

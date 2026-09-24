@@ -150,7 +150,7 @@ export default function SaleReportPage() {
         </div>
         <Button
           variant="outline"
-          size="sm"
+          
           onClick={() => reportService.exportReport("sales", { companyId: selectedCompanyId, search, dateFrom, dateTo, itemId, godownId, customerId })}
           leftIcon={<FileSpreadsheet size={14} />}
         >

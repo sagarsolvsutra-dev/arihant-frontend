@@ -140,7 +140,7 @@ export default function PurchaseReportPage() {
         </div>
         <Button
           variant="outline"
-          size="sm"
+          
           onClick={() => reportService.exportReport("purchases", { companyId: selectedCompanyId, search, dateFrom, dateTo, itemId, godownId })}
           leftIcon={<FileSpreadsheet size={14} />}
         >

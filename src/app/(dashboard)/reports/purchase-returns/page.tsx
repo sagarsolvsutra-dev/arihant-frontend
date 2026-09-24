@@ -168,7 +168,7 @@ export default function PurchaseReturnReportPage() {
         </div>
         <Button
           variant="outline"
-          size="sm"
+          
           onClick={() => reportService.exportReport("purchase-returns", { companyId: selectedCompanyId, search, dateFrom, dateTo, itemId, godownId, supplierId, condition })}
           leftIcon={<FileSpreadsheet size={14} />}
         >

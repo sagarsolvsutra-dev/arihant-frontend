@@ -8,6 +8,7 @@ import { FormToolbar } from "@/components/ui/FormToolbar";
 import { useCompany } from "@/context/CompanyContext";
 import { openingBillService } from "@/services/openingBillService";
 import { supplierService } from "@/services/supplierService";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { toast } from "@/lib/toast";
 
 export default function EditPurchaseOpeningBillPage() {
@@ -145,10 +146,9 @@ export default function EditPurchaseOpeningBillPage() {
                 <td className="w-[180px] align-middle font-medium text-gray-700 whitespace-nowrap">Invoice Date</td>
                 <td>
                   <div className="w-48">
-                    <Input 
-                      type="date" 
+                    <DatePicker 
                       value={billDate} 
-                      onChange={(e) => setBillDate(e.target.value)} 
+                      onChange={setBillDate} 
                       className={inputClass}
                     />
                   </div>

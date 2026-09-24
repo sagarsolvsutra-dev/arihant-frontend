@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { EditButton, DeleteButton } from "@/components/ui/ActionButtons";
-import { Plus, FileSpreadsheet } from "lucide-react";
+import { Plus, FileSpreadsheet, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { DatePicker } from "@/components/ui/DatePicker";
@@ -110,7 +110,12 @@ export default function SaleReturnListPage() {
 
   const handleExportExcel = () => {
     if (!companyId) return;
-    exportListService.exportList("sale-returns", companyId, { dateFrom, dateTo });
+    exportListService.exportList("sale-returns", companyId, { dateFrom, dateTo, search: searchQuery, format: "excel" });
+  };
+
+  const handleExportPDF = () => {
+    if (!companyId) return;
+    exportListService.exportList("sale-returns", companyId, { dateFrom, dateTo, search: searchQuery, format: "pdf" });
   };
 
   const handleSearchChange = (val: string) => {
@@ -230,6 +235,9 @@ export default function SaleReturnListPage() {
         </div>
         <Button variant="outline" size="sm" onClick={handleExportExcel} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
           Excel
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleExportPDF} leftIcon={<FileDown size={14} />} title="Export to PDF">
+          PDF
         </Button>
       </div>
 

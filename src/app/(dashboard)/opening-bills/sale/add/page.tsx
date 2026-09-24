@@ -9,6 +9,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { openingBillService } from "@/services/openingBillService";
 import { customerService } from "@/services/customerService";
 import { salesmanService } from "@/services/salesmanService";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { toast } from "@/lib/toast";
 
 export default function AddSaleOpeningBillPage() {
@@ -195,10 +196,9 @@ export default function AddSaleOpeningBillPage() {
                 <td className="w-[180px] align-middle font-medium text-gray-700 whitespace-nowrap">Invoice Date</td>
                 <td>
                   <div className="w-48">
-                    <Input 
-                      type="date" 
+                    <DatePicker 
                       value={billDate} 
-                      onChange={(e) => setBillDate(e.target.value)} 
+                      onChange={setBillDate} 
                       className={inputClass + " text-blue-700"}
                     />
                   </div>
@@ -209,10 +209,9 @@ export default function AddSaleOpeningBillPage() {
                 <td className="w-[180px] align-middle font-medium text-gray-700 whitespace-nowrap">Due Date</td>
                 <td>
                   <div className="w-48">
-                    <Input 
-                      type="date" 
+                    <DatePicker 
                       value={dueDate} 
-                      onChange={(e) => setDueDate(e.target.value)} 
+                      onChange={setDueDate} 
                       className={inputClass + " text-blue-700"}
                     />
                   </div>

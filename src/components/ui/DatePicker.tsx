@@ -65,6 +65,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   const minDateValue = parseValue(minDate);
   const [isOpen, setIsOpen] = useState(false);
   const [viewDate, setViewDate] = useState<Date>(selectedDate || new Date());
+  const [viewMode, setViewMode] = useState<"date" | "month" | "year">("date");
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const [mounted, setMounted] = useState(false);
 
@@ -77,7 +78,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   }, []);
 
   useEffect(() => {
-    if (isOpen) setViewDate(selectedDate || minDateValue || new Date());
+    if (isOpen) {
+      setViewDate(selectedDate || minDateValue || new Date());
+      setViewMode("date");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
@@ -163,55 +167,127 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       style={dropdownStyle}
       className="bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden animate-fadeIn p-3"
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-4 px-2 pt-2">
         <button
           type="button"
-          onClick={() => setViewDate(new Date(year, month - 1, 1))}
-          className="p-1 rounded hover:bg-gray-100 text-gray-500"
+          onClick={() => setViewMode(viewMode === "date" ? "year" : "date")}
+          className="text-[15px] font-medium text-gray-800 hover:bg-gray-50 px-2 py-1 rounded flex items-center gap-1 transition-colors"
         >
-          <ChevronLeft size={16} />
-        </button>
-        <span className="text-sm font-semibold text-gray-900">
           {MONTHS[month]} {year}
-        </span>
-        <button
-          type="button"
-          onClick={() => setViewDate(new Date(year, month + 1, 1))}
-          className="p-1 rounded hover:bg-gray-100 text-gray-500"
-        >
-          <ChevronRight size={16} />
+          <span className="text-[10px] text-gray-500 ml-1">{viewMode === "date" ? "▼" : "▲"}</span>
         </button>
-      </div>
 
-      <div className="grid grid-cols-7 text-center text-[11px] font-semibold text-gray-400 mb-1">
-        {WEEKDAYS.map((w) => (
-          <div key={w} className="py-1">{w}</div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-7 gap-0.5">
-        {cells.map(({ date, inMonth }, i) => {
-          const isSelected = !!selectedDate && isSameDay(date, selectedDate);
-          const isToday = isSameDay(date, today);
-          const isDisabled = !!minDateValue && date < minDateValue && !isSameDay(date, minDateValue);
-          return (
+        {viewMode === "date" && (
+          <div className="flex items-center gap-1">
             <button
-              key={i}
               type="button"
-              onClick={() => !isDisabled && handlePick(date)}
-              disabled={isDisabled}
-              title={isDisabled ? `Cannot select a date before ${formatDisplay(minDate)}` : undefined}
-              className={`h-8 w-8 text-xs rounded-md flex items-center justify-center transition-colors
-                ${isDisabled ? "text-gray-200 cursor-not-allowed hover:bg-transparent" : !inMonth ? "text-gray-300 hover:bg-gray-50" : "text-gray-700 hover:bg-gray-100"}
-                ${isSelected ? "!bg-gray-900 !text-white font-semibold" : ""}
-                ${isToday && !isSelected && !isDisabled ? "border border-gray-900 font-semibold" : ""}
-              `}
+              onClick={() => setViewDate(new Date(year, month - 1, 1))}
+              className="p-1.5 rounded-full hover:bg-gray-100 text-gray-600"
             >
-              {date.getDate()}
+              <ChevronLeft size={20} />
             </button>
-          );
-        })}
+            <button
+              type="button"
+              onClick={() => setViewDate(new Date(year, month + 1, 1))}
+              className="p-1.5 rounded-full hover:bg-gray-100 text-gray-600"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        )}
       </div>
+
+      {viewMode === "year" && (
+        <div 
+          className="grid grid-cols-4 gap-y-6 gap-x-1 px-2 pb-2 max-h-[260px] overflow-y-auto custom-scrollbar"
+          ref={(el) => {
+            if (el && viewMode === "year") {
+              const active = el.querySelector('[data-active="true"]');
+              if (active && !el.dataset.scrolled) {
+                active.scrollIntoView({ block: "center" });
+                el.dataset.scrolled = "true";
+              }
+            }
+          }}
+        >
+          {Array.from({ length: 201 }, (_, i) => new Date().getFullYear() - 100 + i).map((y) => (
+            <div key={y} className="flex justify-center">
+              <button
+                type="button"
+                data-active={y === year}
+                onClick={() => {
+                  setViewDate(new Date(y, month, 1));
+                  setViewMode("month");
+                }}
+                className={`w-[60px] h-8 text-[14px] flex items-center justify-center rounded-full transition-colors ${
+                  y === year 
+                    ? "bg-[#1976d2] text-white font-medium shadow-sm hover:bg-blue-700" 
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                {y}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {viewMode === "month" && (
+        <div className="grid grid-cols-3 gap-y-8 gap-x-2 px-2 py-4 max-h-[260px]">
+          {MONTHS.map((m, i) => (
+            <div key={m} className="flex justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setViewDate(new Date(year, i, 1));
+                  setViewMode("date");
+                }}
+                className={`w-[64px] h-8 text-[14px] flex items-center justify-center rounded-full transition-colors ${
+                  i === month 
+                    ? "bg-[#1976d2] text-white font-medium shadow-sm hover:bg-blue-700" 
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                {m.slice(0, 3)}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {viewMode === "date" && (
+        <>
+          <div className="grid grid-cols-7 text-center text-[11px] font-semibold text-gray-400 mb-1">
+            {WEEKDAYS.map((w) => (
+              <div key={w} className="py-1">{w}</div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-0.5">
+            {cells.map(({ date, inMonth }, i) => {
+              const isSelected = !!selectedDate && isSameDay(date, selectedDate);
+              const isToday = isSameDay(date, today);
+              const isDisabled = !!minDateValue && date < minDateValue && !isSameDay(date, minDateValue);
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => !isDisabled && handlePick(date)}
+                  disabled={isDisabled}
+                  title={isDisabled ? `Cannot select a date before ${formatDisplay(minDate)}` : undefined}
+                  className={`h-8 w-8 text-xs rounded-full flex items-center justify-center transition-colors
+                    ${isDisabled ? "text-gray-200 cursor-not-allowed hover:bg-transparent" : !inMonth ? "text-gray-300 hover:bg-gray-50" : "text-gray-700 hover:bg-gray-100"}
+                    ${isSelected ? "!bg-[#1976d2] !text-white font-semibold shadow-sm hover:!bg-blue-700" : ""}
+                    ${isToday && !isSelected && !isDisabled ? "border border-[#1976d2] text-[#1976d2] font-semibold" : ""}
+                  `}
+                >
+                  {date.getDate()}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100">
         <button
@@ -257,7 +333,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           }
         }}
         disabled={disabled}
-        className={`w-full flex items-center justify-between px-3 py-2.5 text-sm rounded-lg bg-white transition-all
+        className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg bg-white transition-all
           ${
             hasError
               ? "border border-red-500 focus:ring-2 focus:ring-red-200"

@@ -169,7 +169,7 @@ export default function FullStockReportPage() {
         <div className="w-full sm:w-40">
           <DatePicker label="To" value={dateTo} onChange={setDateTo} placeholder="To" minDate={dateFrom || undefined} />
         </div>
-        <Button variant="outline" size="sm" onClick={handleExport} leftIcon={<FileSpreadsheet size={14} />}>
+        <Button variant="outline"  onClick={handleExport} leftIcon={<FileSpreadsheet size={14} />}>
           Excel
         </Button>
       </div>

@@ -80,16 +80,16 @@ export const reportService = {
       toast.error(err.message || "Failed to export");
     }
   },
-  exportCustomerLedger: async (customerId: string, companyId: string, dateFrom = "", dateTo = "") => {
+  exportCustomerLedger: async (customerId: string, companyId: string, dateFrom = "", dateTo = "", format: "excel" | "pdf" = "excel") => {
     try {
-      await downloadFile(`${API_ENDPOINTS.REPORTS}/customer-ledger/${customerId}/export?${qs({ companyId, dateFrom, dateTo })}`, "customer-ledger.xlsx");
+      await downloadFile(`${API_ENDPOINTS.REPORTS}/customer-ledger/${customerId}/export?${qs({ companyId, dateFrom, dateTo, format })}`, `customer-ledger.${format === "excel" ? "xlsx" : "pdf"}`);
     } catch (err: any) {
       toast.error(err.message || "Failed to export");
     }
   },
-  exportSupplierLedger: async (supplierId: string, companyId: string, dateFrom = "", dateTo = "") => {
+  exportSupplierLedger: async (supplierId: string, companyId: string, dateFrom = "", dateTo = "", format: "excel" | "pdf" = "excel") => {
     try {
-      await downloadFile(`${API_ENDPOINTS.REPORTS}/supplier-ledger/${supplierId}/export?${qs({ companyId, dateFrom, dateTo })}`, "supplier-ledger.xlsx");
+      await downloadFile(`${API_ENDPOINTS.REPORTS}/supplier-ledger/${supplierId}/export?${qs({ companyId, dateFrom, dateTo, format })}`, `supplier-ledger.${format === "excel" ? "xlsx" : "pdf"}`);
     } catch (err: any) {
       toast.error(err.message || "Failed to export");
     }

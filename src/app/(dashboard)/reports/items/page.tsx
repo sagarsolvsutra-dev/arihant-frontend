@@ -125,7 +125,7 @@ export default function ItemReportPage() {
         </div>
         <Button
           variant="outline"
-          size="sm"
+          
           onClick={() => reportService.exportReport("items", { companyId: selectedCompanyId, search, dateFrom, dateTo })}
           leftIcon={<FileSpreadsheet size={14} />}
         >

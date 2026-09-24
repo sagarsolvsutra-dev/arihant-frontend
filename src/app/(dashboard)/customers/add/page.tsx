@@ -10,6 +10,7 @@ import { Save, X, Plus, Edit } from "lucide-react";
 import { FormToolbar } from "@/components/ui/FormToolbar";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { toast } from "@/lib/toast";
 
 const FieldRow = ({ label, children, required }: any) => (
@@ -51,6 +52,9 @@ export default function AddCustomerPage() {
   const [email, setEmail] = useState("");
   const [gstNo, setGstNo] = useState("");
   const [panNo, setPanNo] = useState("");
+  const [fssaiLicenseNumber, setFssaiLicenseNumber] = useState("");
+  const [fssaiIssueDate, setFssaiIssueDate] = useState("");
+  const [fssaiExpiryDate, setFssaiExpiryDate] = useState("");
   const [uniqueIdNo, setUniqueIdNo] = useState("");
   const [drugLicNo, setDrugLicNo] = useState("");
   const [customerType, setCustomerType] = useState("Retailer");
@@ -107,6 +111,16 @@ export default function AddCustomerPage() {
       toast.error("Invalid PAN Number format");
       return;
     }
+    if (fssaiLicenseNumber.trim()) {
+      if (!/^\d{14}$/.test(fssaiLicenseNumber.trim())) {
+        toast.error("FSSAI License Number must be exactly 14 digits");
+        return;
+      }
+      if (!fssaiIssueDate || !fssaiExpiryDate) {
+        toast.error("FSSAI Issue Date and Expiry Date are required when License Number is provided");
+        return;
+      }
+    }
     setSaving(true);
     try {
       const payload: any = {
@@ -125,6 +139,9 @@ export default function AddCustomerPage() {
         email: email.trim(),
         gstNo: gstNo.trim(),
         panNo: panNo.trim(),
+        fssaiLicenseNumber: fssaiLicenseNumber.trim(),
+        fssaiIssueDate: fssaiIssueDate || null,
+        fssaiExpiryDate: fssaiExpiryDate || null,
         uniqueIdNo: uniqueIdNo.trim(),
         drugLicNo: drugLicNo.trim(),
         customerType: customerType,
@@ -313,6 +330,25 @@ export default function AddCustomerPage() {
                   <Input value={panNo} onChange={e => setPanNo(e.target.value)} maxLength={10} className="!h-9 uppercase" />
                 </div>
               </FieldRow>
+
+              <FieldRow label="FSSAI License No.">
+                <div className="max-w-xl w-full">
+                  <Input value={fssaiLicenseNumber} onChange={e => setFssaiLicenseNumber(e.target.value.replace(/\D/g, "").slice(0, 14))} maxLength={14} className="!h-9" />
+                </div>
+              </FieldRow>
+
+              <FieldRow label="FSSAI Issue Date">
+                <div className="w-64">
+                  <DatePicker value={fssaiIssueDate} onChange={setFssaiIssueDate} className="!h-9" />
+                </div>
+              </FieldRow>
+
+              <FieldRow label="FSSAI Expiry Date">
+                <div className="w-64">
+                  <DatePicker value={fssaiExpiryDate} onChange={setFssaiExpiryDate} className="!h-9" />
+                </div>
+              </FieldRow>
+
               <FieldRow label="Customer ID">
                 <div className="w-64">
                   <Input value={uniqueIdNo} onChange={e => setUniqueIdNo(e.target.value)} className="!h-9" />

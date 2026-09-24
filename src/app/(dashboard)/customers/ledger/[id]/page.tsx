@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, FileSpreadsheet } from "lucide-react";
+import { ArrowLeft, FileSpreadsheet, FileDown } from "lucide-react";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Table, Column } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
@@ -10,6 +10,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { reportService } from "@/services/reportService";
 import { toast } from "@/lib/toast";
 import { formatDate } from "@/lib/date";
+import { exportLedgerToPDF } from "@/lib/pdf";
 
 interface LedgerEntry {
   date: string;
@@ -131,11 +132,17 @@ export default function CustomerLedgerPage() {
         </div>
         <Button
           variant="outline"
-          size="sm"
           onClick={() => reportService.exportCustomerLedger(id, selectedCompanyId, dateFrom, dateTo)}
           leftIcon={<FileSpreadsheet size={14} />}
         >
           Excel
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => reportService.exportCustomerLedger(id, selectedCompanyId, dateFrom, dateTo, "pdf")}
+          leftIcon={<FileDown size={14} />}
+        >
+          PDF
         </Button>
       </div>
 
