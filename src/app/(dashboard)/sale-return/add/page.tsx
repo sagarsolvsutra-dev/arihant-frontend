@@ -13,7 +13,9 @@ import { saleReturnService } from "@/services/saleReturnService";
 import { itemService } from "@/services/itemService";
 import { customerService } from "@/services/customerService";
 import { godownService } from "@/services/godownService";
+import { bankAccountService } from "@/services/bankAccountService";
 import { toast } from "@/lib/toast";
+import { usesBankAccount } from "@/lib/paymentModes";
 import { Plus, X, Pencil, Package, Boxes, Search } from "lucide-react";
 
 // "YYYY-MM-DD" for today, in local time — used to default required date fields
@@ -198,6 +200,9 @@ export default function AddSaleReturnPage() {
   const [originalItems, setOriginalItems] = useState<any[]>([]);
   const [notes, setNotes] = useState("");
   const [refundAmount, setRefundAmount] = useState("0");
+  const [paymentMode, setPaymentMode] = useState("Cash");
+  const [bankAccountId, setBankAccountId] = useState("");
+  const [banks, setBanks] = useState<any[]>([]);
   const [dueDate, setDueDate] = useState("");
 
   // Entry row
@@ -238,6 +243,9 @@ export default function AddSaleReturnPage() {
       const list = res.data || res || [];
       setAllGodowns(list);
       setGodowns(list.filter((g: any) => g.isActive !== false));
+    });
+    bankAccountService.getBankAccounts().then((res: any) => {
+      setBanks(res.data || res || []);
     });
   }, [companyId]);
 
@@ -583,6 +591,8 @@ export default function AddSaleReturnPage() {
         originalSaleId: originalSaleId || undefined,
         notes,
         refundAmount: parseFloat(refundAmount) || 0,
+        paymentMode,
+        bankAccountId: usesBankAccount(paymentMode) ? bankAccountId : undefined,
         dueDate: dueDate || undefined,
         items: lines.map((l) => ({
           itemId: l.itemId,
@@ -1099,6 +1109,35 @@ export default function AddSaleReturnPage() {
                     <Input type="number" value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} className={`${inputClass} text-right w-48`} />
                   </td>
                 </tr>
+                <tr>
+                  <td className={rowLabel}>Payment Mode</td>
+                  <td className="relative z-[31]">
+                    <div className="w-48">
+                      <Select
+                        options={[
+                          { value: "Cash", label: "Cash" },
+                          { value: "Bank", label: "Bank Account" }
+                        ]}
+                        value={paymentMode}
+                        onChange={setPaymentMode}
+                        searchable={false}
+                      />
+                    </div>
+                  </td>
+                </tr>
+                {usesBankAccount(paymentMode) && (
+                  <tr>
+                    <td className={rowLabel}>Bank Account</td>
+                    <td className="relative z-[32]">
+                      <Select
+                        options={banks.map((b) => ({ value: b._id, label: `${b.bankName} - ${b.accountNumber} (Bal: ₹${(b.currentBalance || 0).toFixed(2)})` }))}
+                        value={bankAccountId}
+                        onChange={setBankAccountId}
+                        placeholder="Select Bank"
+                      />
+                    </td>
+                  </tr>
+                )}
                 <tr>
                   <td className={rowLabel}>{pendingAmountValue < 0 ? "Excess Refund" : "Pending Amount"}</td>
                   <td>

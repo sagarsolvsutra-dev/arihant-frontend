@@ -150,6 +150,19 @@ export default function CompaniesPage() {
   };
 
   useEffect(() => {
+    // Same role self-check /super-admin/users and /staff already do — this is
+    // the only gate on a super_admin-only route (there's no middleware or
+    // RoleGuard), and without it a staff/company_admin typing this URL got the
+    // whole page with Add/Edit/Delete rendered, every one of which then 403s.
+    const userData = localStorage.getItem("user");
+    if (!userData) {
+      router.push("/login");
+      return;
+    }
+    if (JSON.parse(userData).role !== "super_admin") {
+      router.push("/dashboard");
+      return;
+    }
     fetchCompanies();
     fetchAdmins();
   }, []);

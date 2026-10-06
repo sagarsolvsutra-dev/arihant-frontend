@@ -104,7 +104,10 @@ setGroups([]);
     const payload = {
       companyId: selectedCompanyId,
       name: nameInput.trim(),
-      zoneNo: zoneInput.trim() || undefined,
+      // "" not undefined — the backend's updateCustomerGroup reads this as
+      // `if (zoneNo !== undefined) ...`, so `undefined` silently dropped the key
+      // from the JSON body, making an already-set Zone No. impossible to clear.
+      zoneNo: zoneInput.trim(),
     };
 
     try {
@@ -224,7 +227,7 @@ setGroups([]);
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("customer-groups", selectedCompanyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
+          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("customer-groups", selectedCompanyId!, { search: searchQuery })} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
             Excel
           </Button>
           {canAction("customerGroups", "create") && (

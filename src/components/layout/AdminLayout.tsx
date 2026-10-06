@@ -43,7 +43,7 @@ const MASTER_LINKS: { label: string; href: string; moduleKey: PermissionModule }
   { label: "Godown Groups", href: "/godown-groups", moduleKey: "godownGroups" },
   { label: "Items / M.R.Ps.", href: "/items", moduleKey: "items" },
   { label: "HSN Codes", href: "/hsn", moduleKey: "hsn" },
-  { label: "Item Names", href: "/item-names", moduleKey: "itemNames" },
+  { label: "Categories", href: "/item-names", moduleKey: "itemNames" },
   { label: "Item Sub Groups", href: "/item-sub-groups", moduleKey: "itemSubGroups" },
   { label: "Customers", href: "/customers", moduleKey: "customers" },
   { label: "Customer Groups", href: "/customer-groups", moduleKey: "customerGroups" },
@@ -51,6 +51,7 @@ const MASTER_LINKS: { label: string; href: string; moduleKey: PermissionModule }
   { label: "Schemes", href: "/schemes", moduleKey: "schemes" },
   { label: "Opening Pending of Sale Bill", href: "/opening-bills/sale", moduleKey: "openingBills" },
   { label: "Opening Pending of Purchase Bill", href: "/opening-bills/purchase", moduleKey: "openingBills" },
+  { label: "Bank Accounts", href: "/bank-accounts", moduleKey: "bankAccounts" },
 ];
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
@@ -95,7 +96,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   // or browser Back/Forward) left the sidebar stuck showing the Masters submenu
   // with no Dashboard/Purchase/Sell links visible.
   useEffect(() => {
-    const masterPaths = ["/hsn", "/items", "/item-names", "/item-sub-groups", "/customers", "/customer-groups", "/suppliers", "/supplier-groups", "/godowns", "/godown-groups", "/salesmen", "/schemes", "/opening-bills/sale", "/opening-bills/purchase"];
+    const masterPaths = ["/hsn", "/items", "/item-names", "/item-sub-groups", "/customers", "/customer-groups", "/suppliers", "/supplier-groups", "/godowns", "/godown-groups", "/salesmen", "/schemes", "/opening-bills/sale", "/opening-bills/purchase", "/bank-accounts"];
     const isMasterPath = masterPaths.some(path => pathname === path || pathname?.startsWith(path));
     setSidebarView(isMasterPath ? "masters" : "main");
   }, [pathname]);
@@ -257,6 +258,29 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         englishLabel: "Stock Transfer",
         icon: <ArrowLeftRight className="h-5 w-5" />,
         href: "/stock-transfer",
+      });
+    }
+    if (hasPermission("payments")) {
+      items.push({
+        id: "ca-payments",
+        label: "Payment Receiver",
+        englishLabel: "Payment Receiver",
+        icon: <Layers className="h-5 w-5" />,
+        href: "/payments",
+      });
+      items.push({
+        id: "ca-bank-transfer",
+        label: "Bank Transfer",
+        englishLabel: "Bank Transfer",
+        icon: <ArrowLeftRight className="h-5 w-5" />,
+        href: "/bank-transfer",
+      });
+      items.push({
+        id: "ca-expenses",
+        label: "Expenses",
+        englishLabel: "Expenses",
+        icon: <Tag className="h-5 w-5" />,
+        href: "/expenses",
       });
     }
     if (hasPermission("reports")) {

@@ -253,7 +253,7 @@ setRecords([]);
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("item-names", selectedCompanyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
+          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("item-names", selectedCompanyId!, { search: searchQuery })} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
             Excel
           </Button>
           {canAction("itemNames", "create") && (

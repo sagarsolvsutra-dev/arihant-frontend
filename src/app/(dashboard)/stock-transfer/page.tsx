@@ -108,7 +108,7 @@ export default function StockTransferListPage() {
 
   const handleExportExcel = () => {
     if (!companyId) return;
-    exportListService.exportList("stock-transfers", companyId, { dateFrom, dateTo });
+    exportListService.exportList("stock-transfers", companyId, { dateFrom, dateTo, search: searchQuery });
   };
 
   const handleSearchChange = (val: string) => {

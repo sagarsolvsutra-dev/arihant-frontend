@@ -13,7 +13,9 @@ import { purchaseService } from "@/services/purchaseService";
 import { itemService } from "@/services/itemService";
 import { supplierService } from "@/services/supplierService";
 import { godownService } from "@/services/godownService";
+import { bankAccountService } from "@/services/bankAccountService";
 import { toast } from "@/lib/toast";
+import { usesBankAccount } from "@/lib/paymentModes";
 import { Plus, X, Pencil, Package, Boxes, TrendingUp } from "lucide-react";
 
 interface MrpEntry {
@@ -169,7 +171,10 @@ export default function EditPurchasePage() {
   const [ewayBillNo, setEwayBillNo] = useState("");
   const [notes, setNotes] = useState("");
   const [paidAmount, setPaidAmount] = useState("0");
+  const [paymentMode, setPaymentMode] = useState("Cash");
+  const [bankAccountId, setBankAccountId] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [banks, setBanks] = useState<any[]>([]);
 
   const [supplierId, setSupplierId] = useState("");
   // Per-line, not header-level — each added line carries its own godown, so a single
@@ -208,6 +213,9 @@ export default function EditPurchasePage() {
       setAllGodowns(list);
       setGodowns(list.filter((g: any) => g.isActive !== false));
     });
+    bankAccountService.getBankAccounts().then((res: any) => {
+      setBanks(res || []);
+    });
   }, [companyId]);
 
   useEffect(() => {
@@ -221,6 +229,8 @@ export default function EditPurchasePage() {
         setEwayBillNo(p.ewayBillNo || "");
         setNotes(p.notes || "");
         setPaidAmount(String(p.paidAmount ?? 0));
+        setPaymentMode(p.paymentMode || "Cash");
+        setBankAccountId(typeof p.bankAccountId === "string" ? p.bankAccountId : p.bankAccountId?._id || "");
         setDueDate(toDateInputValue(p.dueDate));
         setLines(
           (p.items || []).map((it: any, idx: number) => ({
@@ -498,6 +508,8 @@ export default function EditPurchasePage() {
         ewayBillNo,
         notes,
         paidAmount: parseFloat(paidAmount) || 0,
+        paymentMode,
+        bankAccountId: usesBankAccount(paymentMode) ? bankAccountId : undefined,
         dueDate: dueDate || null,
         items: lines.map((l) => ({
           itemId: l.itemId,
@@ -969,6 +981,38 @@ export default function EditPurchasePage() {
             <h3 className="font-semibold text-gray-800 mb-3 border-b pb-2">Payment</h3>
             <table className="w-full border-separate" style={{ borderSpacing: "0 8px" }}>
               <tbody>
+                <tr>
+                  <td className={rowLabel}>Payment Mode</td>
+                  <td className="relative z-[40]">
+                    <div className="w-48">
+                      <Select
+                        options={[
+                          { value: "Cash", label: "Cash" },
+                          { value: "Bank", label: "Bank Account" },
+                        ]}
+                        value={paymentMode === "Bank Account" ? "Bank" : paymentMode}
+                        onChange={setPaymentMode}
+                        className={selectClass}
+                      />
+                    </div>
+                  </td>
+                </tr>
+                {usesBankAccount(paymentMode) ? (
+                  <tr>
+                    <td className={rowLabel}>Bank Account <span className="text-red-500 font-bold">*</span></td>
+                    <td className="relative z-[35]">
+                      <div className="w-48">
+                        <Select
+                          options={banks.map((b) => ({ value: b._id, label: `${b.bankName} - ${b.accountNumber} (Bal: ₹${(b.currentBalance || 0).toFixed(2)})` }))}
+                          value={bankAccountId}
+                          onChange={setBankAccountId}
+                          className={selectClass}
+                          placeholder="Select Bank"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
                 <tr>
                   <td className={rowLabel}>Paid Amount</td>
                   <td>

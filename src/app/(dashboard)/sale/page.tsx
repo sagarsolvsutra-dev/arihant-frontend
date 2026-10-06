@@ -13,10 +13,12 @@ import { useCompany } from "@/context/CompanyContext";
 import { saleService } from "@/services/saleService";
 import { godownService } from "@/services/godownService";
 import { itemService } from "@/services/itemService";
+import { customerService } from "@/services/customerService";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
 import { formatDate } from "@/lib/date";
 import { canAction } from "@/lib/permissions";
+import { exportInvoiceToPDF } from "@/lib/pdf";
 
 interface SaleRecord {
   _id: string;
@@ -122,6 +124,19 @@ export default function SaleListPage() {
     setPage(1);
   };
 
+  const handleDownloadInvoice = async (record: SaleRecord) => {
+    if (!activeCompany) return;
+    try {
+      const fullRecord = await saleService.getSaleById(record._id);
+      const customer = typeof fullRecord.customerId === "string" 
+        ? await customerService.getCustomerById(fullRecord.customerId) 
+        : fullRecord.customerId;
+      exportInvoiceToPDF(fullRecord, "Sale", activeCompany, customer);
+    } catch (error) {
+      toast.error("Failed to generate PDF");
+    }
+  };
+
   const columns = [
     { key: "invoiceNo", header: "Invoice No", accessor: (r: SaleRecord) => r.invoiceNo, primary: true },
     {
@@ -188,7 +203,10 @@ export default function SaleListPage() {
       key: "actions",
       header: "Actions",
       accessor: (r: SaleRecord) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <Button variant="ghost" size="sm" onClick={() => handleDownloadInvoice(r)} title="Download PDF" className="p-1 h-auto text-gray-500 hover:text-gray-900">
+            <FileDown size={15} />
+          </Button>
           {canAction("sale", "edit") && <EditButton onClick={() => router.push(`/sale/edit/${r._id}`)} />}
           {canAction("sale", "delete") && <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />}
         </div>

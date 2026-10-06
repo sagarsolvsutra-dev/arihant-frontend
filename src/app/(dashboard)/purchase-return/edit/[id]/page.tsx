@@ -14,7 +14,9 @@ import { purchaseService } from "@/services/purchaseService";
 import { itemService } from "@/services/itemService";
 import { supplierService } from "@/services/supplierService";
 import { godownService } from "@/services/godownService";
+import { bankAccountService } from "@/services/bankAccountService";
 import { toast } from "@/lib/toast";
+import { usesBankAccount } from "@/lib/paymentModes";
 import { Plus, X, Pencil, Package, Boxes, Search } from "lucide-react";
 
 interface MrpEntry {
@@ -192,6 +194,9 @@ export default function EditPurchaseReturnPage() {
   const [originalItems, setOriginalItems] = useState<any[]>([]);
   const [notes, setNotes] = useState("");
   const [refundAmount, setRefundAmount] = useState("0");
+  const [paymentMode, setPaymentMode] = useState("Cash");
+  const [bankAccountId, setBankAccountId] = useState("");
+  const [banks, setBanks] = useState<any[]>([]);
   const [dueDate, setDueDate] = useState("");
 
   // Per-line, not header-level — each added line carries its own godown, so a single
@@ -232,6 +237,9 @@ export default function EditPurchaseReturnPage() {
       setAllGodowns(list);
       setGodowns(list.filter((g: any) => g.isActive !== false));
     });
+    bankAccountService.getBankAccounts().then((res: any) => {
+      setBanks(res.data || res || []);
+    });
   }, [companyId]);
 
   useEffect(() => {
@@ -246,6 +254,8 @@ export default function EditPurchaseReturnPage() {
         setOriginalPurchaseId(r.originalPurchaseId || "");
         setNotes(r.notes || "");
         setRefundAmount(String(r.refundAmount ?? 0));
+        setPaymentMode(r.paymentMode || "Cash");
+        setBankAccountId(typeof r.bankAccountId === "string" ? r.bankAccountId : r.bankAccountId?._id || "");
         setDueDate(toDateInputValue(r.dueDate));
         setLines(
           (r.items || []).map((it: any, idx: number) => ({
@@ -622,6 +632,8 @@ export default function EditPurchaseReturnPage() {
         originalPurchaseId: originalPurchaseId || null,
         notes,
         refundAmount: parseFloat(refundAmount) || 0,
+        paymentMode,
+        bankAccountId: usesBankAccount(paymentMode) ? bankAccountId : undefined,
         dueDate: dueDate || null,
         items: lines.map((l) => ({
           itemId: l.itemId,
@@ -1106,6 +1118,35 @@ export default function EditPurchaseReturnPage() {
                     <Input type="number" value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} className={`${inputClass} text-right w-48`} />
                   </td>
                 </tr>
+                <tr>
+                  <td className={rowLabel}>Payment Mode</td>
+                  <td className="relative z-[31]">
+                    <div className="w-48">
+                      <Select
+                        options={[
+                          { value: "Cash", label: "Cash" },
+                          { value: "Bank", label: "Bank Account" }
+                        ]}
+                        value={paymentMode}
+                        onChange={setPaymentMode}
+                        searchable={false}
+                      />
+                    </div>
+                  </td>
+                </tr>
+                {usesBankAccount(paymentMode) && (
+                  <tr>
+                    <td className={rowLabel}>Bank Account</td>
+                    <td className="relative z-[32]">
+                      <Select
+                        options={banks.map((b) => ({ value: b._id, label: `${b.bankName} - ${b.accountNumber} (Bal: ₹${(b.currentBalance || 0).toFixed(2)})` }))}
+                        value={bankAccountId}
+                        onChange={setBankAccountId}
+                        placeholder="Select Bank"
+                      />
+                    </td>
+                  </tr>
+                )}
                 <tr>
                   <td className={rowLabel}>{pendingAmountValue < 0 ? "Excess Refund" : "Pending Amount"}</td>
                   <td>

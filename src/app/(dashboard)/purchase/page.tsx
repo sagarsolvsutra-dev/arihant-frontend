@@ -13,10 +13,12 @@ import { useCompany } from "@/context/CompanyContext";
 import { purchaseService } from "@/services/purchaseService";
 import { godownService } from "@/services/godownService";
 import { itemService } from "@/services/itemService";
+import { supplierService } from "@/services/supplierService";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
 import { formatDate } from "@/lib/date";
 import { canAction } from "@/lib/permissions";
+import { exportInvoiceToPDF } from "@/lib/pdf";
 
 interface PurchaseRecord {
   _id: string;
@@ -120,6 +122,19 @@ export default function PurchaseListPage() {
     setPage(1);
   };
 
+  const handleDownloadInvoice = async (record: PurchaseRecord) => {
+    if (!activeCompany) return;
+    try {
+      const fullRecord = await purchaseService.getPurchaseById(record._id);
+      const supplier = typeof fullRecord.supplierId === "string" 
+        ? await supplierService.getSupplierById(fullRecord.supplierId) 
+        : fullRecord.supplierId;
+      exportInvoiceToPDF(fullRecord, "Purchase", activeCompany, supplier);
+    } catch (error) {
+      toast.error("Failed to generate PDF");
+    }
+  };
+
   const columns = [
     { key: "invoiceNo", header: "Invoice No", accessor: (r: PurchaseRecord) => r.invoiceNo, primary: true },
     {
@@ -176,7 +191,10 @@ export default function PurchaseListPage() {
       key: "actions",
       header: "Actions",
       accessor: (r: PurchaseRecord) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <Button variant="ghost" size="sm" onClick={() => handleDownloadInvoice(r)} title="Download PDF" className="p-1 h-auto text-gray-500 hover:text-gray-900">
+            <FileDown size={15} />
+          </Button>
           {canAction("purchase", "edit") && <EditButton onClick={() => router.push(`/purchase/edit/${r._id}`)} />}
           {canAction("purchase", "delete") && <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />}
         </div>

@@ -14,7 +14,9 @@ import { saleService } from "@/services/saleService";
 import { itemService } from "@/services/itemService";
 import { customerService } from "@/services/customerService";
 import { godownService } from "@/services/godownService";
+import { bankAccountService } from "@/services/bankAccountService";
 import { toast } from "@/lib/toast";
+import { usesBankAccount } from "@/lib/paymentModes";
 import { Plus, X, Pencil, Package, Boxes } from "lucide-react";
 
 interface MrpEntry {
@@ -195,7 +197,10 @@ export default function EditSalePage() {
   const [customerId, setCustomerId] = useState("");
   const [notes, setNotes] = useState("");
   const [receivedAmount, setReceivedAmount] = useState("0");
+  const [paymentModeSale, setPaymentModeSale] = useState("Cash");
+  const [bankAccountId, setBankAccountId] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [banks, setBanks] = useState<any[]>([]);
 
   // Per-line, not header-level — each added line carries its own godown, so a single
   // Sale can move different items out of different godowns.
@@ -234,6 +239,9 @@ export default function EditSalePage() {
       setAllGodowns(list);
       setGodowns(list.filter((g: any) => g.isActive !== false));
     });
+    bankAccountService.getBankAccounts().then((res: any) => {
+      setBanks(res || []);
+    });
   }, [companyId]);
 
   useEffect(() => {
@@ -249,6 +257,8 @@ export default function EditSalePage() {
         setCustomerId(typeof s.customerId === "string" ? s.customerId : s.customerId?._id || "");
         setNotes(s.notes || "");
         setReceivedAmount(String(s.receivedAmount ?? 0));
+        setPaymentModeSale(s.paymentMode || "Cash");
+        setBankAccountId(typeof s.bankAccountId === "string" ? s.bankAccountId : s.bankAccountId?._id || "");
         setDueDate(toDateInputValue(s.dueDate));
         originalPendingAmountRef.current = s.pendingAmount || 0;
         originalCustomerIdRef.current = typeof s.customerId === "string" ? s.customerId : s.customerId?._id || "";
@@ -569,6 +579,12 @@ export default function EditSalePage() {
         customerId,
         notes,
         receivedAmount: parseFloat(receivedAmount) || 0,
+        // Both were loaded into the form and are editable on screen, but neither
+        // was ever sent — so updateSale fell back to the sale's OLD mode/bank
+        // when it re-posted the payment, silently discarding the change and, for
+        // a mode switched to Cheque/UPI, re-posting against the wrong account.
+        paymentMode: paymentModeSale,
+        bankAccountId: usesBankAccount(paymentModeSale) ? bankAccountId : undefined,
         dueDate: dueDate || null,
         items: lines.map((l) => ({
           itemId: l.itemId,
@@ -1061,6 +1077,38 @@ export default function EditSalePage() {
             <h3 className="font-semibold text-gray-800 mb-3 border-b pb-2">Payment</h3>
             <table className="w-full border-separate" style={{ borderSpacing: "0 8px" }}>
               <tbody>
+                <tr>
+                  <td className={rowLabel}>Payment Mode</td>
+                  <td className="relative z-[40]">
+                    <div className="w-48">
+                      <Select
+                        options={[
+                          { value: "Cash", label: "Cash" },
+                          { value: "Bank", label: "Bank" },
+                        ]}
+                        value={paymentModeSale}
+                        onChange={setPaymentModeSale}
+                        className={selectClass}
+                      />
+                    </div>
+                  </td>
+                </tr>
+                {usesBankAccount(paymentModeSale) && (
+                  <tr>
+                    <td className={rowLabel}>Bank Account <span className="text-red-500 font-bold">*</span></td>
+                    <td className="relative z-[35]">
+                      <div className="w-48">
+                        <Select
+                          options={banks.map((b) => ({ value: b._id, label: `${b.bankName} - ${b.accountNumber} (Bal: ₹${(b.currentBalance || 0).toFixed(2)})` }))}
+                          value={bankAccountId}
+                          onChange={setBankAccountId}
+                          className={selectClass}
+                          placeholder="Select Bank"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                )}
                 <tr>
                   <td className={rowLabel}>Received Amount</td>
                   <td>

@@ -166,7 +166,16 @@ export default function EditCustomerPage() {
       const payload: any = {
         name: name.trim(),
         isActive: custActive,
-        customerGroupId: customerGroupId || undefined,
+        // Always send this key — the backend's `!== undefined` check means
+        // `undefined` (from `|| undefined`) silently dropped this key from the
+        // JSON body, making an already-set Customer Group impossible to clear.
+        // Must clear to `null`, not `""` — customerGroupId is an ObjectId ref
+        // field and an empty string fails Mongoose's Cast-to-ObjectId validation
+        // with a real 500 (confirmed live via the identical bug on Supplier Edit's
+        // supplierGroupId, same backend pattern: `customer.customerGroupId =
+        // customerGroupId` is assigned unconditionally once past the `!==
+        // undefined` check, with no separate `|| null` fallback of its own).
+        customerGroupId: customerGroupId || null,
         alias: alias.trim(),
         address: address.trim(),
         city: city.trim(),

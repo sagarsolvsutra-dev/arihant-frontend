@@ -14,7 +14,9 @@ import { saleService } from "@/services/saleService";
 import { itemService } from "@/services/itemService";
 import { customerService } from "@/services/customerService";
 import { godownService } from "@/services/godownService";
+import { bankAccountService } from "@/services/bankAccountService";
 import { toast } from "@/lib/toast";
+import { usesBankAccount } from "@/lib/paymentModes";
 import { Plus, X, Pencil, Package, Boxes } from "lucide-react";
 
 // "YYYY-MM-DD" for today, in local time — used to default required date fields
@@ -185,7 +187,10 @@ export default function AddSalePage() {
   const [customerId, setCustomerId] = useState("");
   const [notes, setNotes] = useState("");
   const [receivedAmount, setReceivedAmount] = useState("0");
+  const [paymentModeSale, setPaymentModeSale] = useState("Cash");
+  const [bankAccountId, setBankAccountId] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [banks, setBanks] = useState<any[]>([]);
 
   // Entry row
   // Per-line, not header-level — each added line carries its own godown, so a single
@@ -226,6 +231,9 @@ export default function AddSalePage() {
       const list = res.data || res || [];
       setAllGodowns(list);
       setGodowns(list.filter((g: any) => g.isActive !== false));
+    });
+    bankAccountService.getBankAccounts().then((res: any) => {
+      setBanks(res || []);
     });
   }, [companyId]);
 
@@ -543,6 +551,8 @@ export default function AddSalePage() {
         customerId,
         notes,
         receivedAmount: parseFloat(receivedAmount) || 0,
+        paymentMode: paymentModeSale,
+        bankAccountId: usesBankAccount(paymentModeSale) ? bankAccountId : undefined,
         dueDate: dueDate || undefined,
         items: lines.map((l) => ({
           itemId: l.itemId,
@@ -1027,6 +1037,38 @@ export default function AddSalePage() {
             <h3 className="font-semibold text-gray-800 mb-3 border-b pb-2">Payment</h3>
             <table className="w-full border-separate" style={{ borderSpacing: "0 8px" }}>
               <tbody>
+                <tr>
+                  <td className={rowLabel}>Payment Mode</td>
+                  <td className="relative z-[40]">
+                    <div className="w-48">
+                      <Select
+                        options={[
+                          { value: "Cash", label: "Cash" },
+                          { value: "Bank", label: "Bank" },
+                        ]}
+                        value={paymentModeSale}
+                        onChange={setPaymentModeSale}
+                        className={selectClass}
+                      />
+                    </div>
+                  </td>
+                </tr>
+                {usesBankAccount(paymentModeSale) && (
+                  <tr>
+                    <td className={rowLabel}>Bank Account <span className="text-red-500 font-bold">*</span></td>
+                    <td className="relative z-[35]">
+                      <div className="w-48">
+                        <Select
+                          options={banks.map((b) => ({ value: b._id, label: `${b.bankName} - ${b.accountNumber} (Bal: ₹${(b.currentBalance || 0).toFixed(2)})` }))}
+                          value={bankAccountId}
+                          onChange={setBankAccountId}
+                          className={selectClass}
+                          placeholder="Select Bank"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                )}
                 <tr>
                   <td className={rowLabel}>Received Amount</td>
                   <td>

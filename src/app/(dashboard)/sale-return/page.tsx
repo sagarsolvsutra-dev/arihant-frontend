@@ -13,10 +13,12 @@ import { useCompany } from "@/context/CompanyContext";
 import { saleReturnService } from "@/services/saleReturnService";
 import { godownService } from "@/services/godownService";
 import { itemService } from "@/services/itemService";
+import { customerService } from "@/services/customerService";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
 import { formatDate } from "@/lib/date";
 import { canAction } from "@/lib/permissions";
+import { exportInvoiceToPDF } from "@/lib/pdf";
 
 interface SaleReturnRecord {
   _id: string;
@@ -123,6 +125,19 @@ export default function SaleReturnListPage() {
     setPage(1);
   };
 
+  const handleDownloadInvoice = async (record: SaleReturnRecord) => {
+    if (!activeCompany) return;
+    try {
+      const fullRecord = await saleReturnService.getSaleReturnById(record._id);
+      const customer = typeof fullRecord.customerId === "string" 
+        ? await customerService.getCustomerById(fullRecord.customerId) 
+        : fullRecord.customerId;
+      exportInvoiceToPDF(fullRecord, "Sale Return", activeCompany, customer);
+    } catch (error) {
+      toast.error("Failed to generate PDF");
+    }
+  };
+
   const columns = [
     { key: "returnNo", header: "Return No", accessor: (r: SaleReturnRecord) => r.returnNo, primary: true },
     {
@@ -188,7 +203,10 @@ export default function SaleReturnListPage() {
       key: "actions",
       header: "Actions",
       accessor: (r: SaleReturnRecord) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <Button variant="ghost" size="sm" onClick={() => handleDownloadInvoice(r)} title="Download PDF" className="p-1 h-auto text-gray-500 hover:text-gray-900">
+            <FileDown size={15} />
+          </Button>
           {canAction("saleReturn", "edit") && <EditButton onClick={() => router.push(`/sale-return/edit/${r._id}`)} />}
           {canAction("saleReturn", "delete") && <DeleteButton onClick={() => { setDeletingRecord(r); setIsDeleteOpen(true); }} />}
         </div>

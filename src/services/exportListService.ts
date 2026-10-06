@@ -7,6 +7,7 @@ export interface ExportListParams {
   dateTo?: string;
   format?: "excel" | "pdf";
   search?: string;
+  customerType?: string;
 }
 
 export const exportListService = {
@@ -16,6 +17,7 @@ export const exportListService = {
     if (params.dateTo) query.set("dateTo", params.dateTo);
     if (params.format) query.set("format", params.format);
     if (params.search) query.set("search", params.search);
+    if (params.customerType) query.set("customerType", params.customerType);
     
     const ext = params.format === "pdf" ? "pdf" : "xlsx";
     try {

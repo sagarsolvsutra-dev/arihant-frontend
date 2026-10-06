@@ -160,22 +160,32 @@ export default function EditSupplierPage() {
         isActive: supplierActive,
         balanceMethod,
       };
-      if (supplierGroupId) payload.supplierGroupId = supplierGroupId;
-      if (alias.trim()) payload.alias = alias.trim();
-      if (phone.trim()) payload.phone = phone.trim();
-      if (phone2.trim()) payload.phone2 = phone2.trim();
-      if (mobile.trim()) payload.mobile = mobile.trim();
-      if (contactPerson.trim()) payload.contactPerson = contactPerson.trim();
-      if (email.trim()) payload.email = email.trim();
-      if (address.trim()) payload.address = address.trim();
-      if (city.trim()) payload.city = city.trim();
-      if (stateName.trim()) payload.state = stateName.trim();
-      if (gstNo.trim()) payload.gstNo = gstNo.trim();
-      if (panNo.trim()) payload.panNo = panNo.trim();
-      if (fssaiLicenseNumber.trim()) payload.fssaiLicenseNumber = fssaiLicenseNumber.trim();
-      if (fssaiIssueDate) payload.fssaiIssueDate = fssaiIssueDate;
-      if (fssaiExpiryDate) payload.fssaiExpiryDate = fssaiExpiryDate;
-      if (creditDays) payload.creditDays = Number(creditDays);
+      // Always include these keys — the backend's updateSupplier reads each as
+      // `if (field !== undefined) ...`, so OMITTING a key means "leave unchanged".
+      // Only gating inclusion on a truthy/non-empty value (the old behavior here)
+      // made it impossible to ever clear an already-filled optional field.
+      // supplierGroupId is an ObjectId ref field — it must clear to `null`, not
+      // `""` (an empty string fails Mongoose's Cast-to-ObjectId validation with a
+      // real 500, confirmed live: `assertRefBelongsToCompany` itself tolerates a
+      // falsy id fine, but the unconditional `supplier.supplierGroupId = ""` right
+      // after it does not). Every other field below is a plain String field, where
+      // `""` is the correct "cleared" value.
+      payload.supplierGroupId = supplierGroupId || null;
+      payload.alias = alias.trim();
+      payload.phone = phone.trim();
+      payload.phone2 = phone2.trim();
+      payload.mobile = mobile.trim();
+      payload.contactPerson = contactPerson.trim();
+      payload.email = email.trim();
+      payload.address = address.trim();
+      payload.city = city.trim();
+      payload.state = stateName.trim();
+      payload.gstNo = gstNo.trim();
+      payload.panNo = panNo.trim();
+      payload.fssaiLicenseNumber = fssaiLicenseNumber.trim();
+      payload.fssaiIssueDate = fssaiIssueDate || "";
+      payload.fssaiExpiryDate = fssaiExpiryDate || "";
+      payload.creditDays = creditDays ? Number(creditDays) : 0;
 
       await supplierService.updateSupplier(supplierId, payload);
       toast.success("Saved successfully");

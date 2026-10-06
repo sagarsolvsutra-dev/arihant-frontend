@@ -625,6 +625,9 @@ export default function EditItemPage() {
                       onChange={(val) => {
                         setSupplierId(val);
                         setName(""); // Reset item name when supplier changes
+                        setItemSubGroupId(""); // Sub Group options are filtered by Supplier too — the
+                        // previously-selected value would otherwise stay selected (and get saved)
+                        // even though it's no longer visible among the new Supplier's options.
                         if (val) loadItemNames(val);
                         else setItemNamesList([]);
                       }}

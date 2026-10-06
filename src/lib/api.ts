@@ -1,5 +1,5 @@
 // API Configuration - Backend connection
-const API_BASE_URL =
+export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 export const API_ENDPOINTS = {
@@ -59,6 +59,8 @@ export const API_ENDPOINTS = {
   BANK_PAYMENT: `${API_BASE_URL}/bank-payment`,
   CONTRA: `${API_BASE_URL}/contra`,
   JOURNAL: `${API_BASE_URL}/journal`,
+  BANK_ACCOUNTS: `${API_BASE_URL}/bank-accounts`,
+  PAYMENTS: `${API_BASE_URL}/payments`,
 
   // Reports
   REPORTS: `${API_BASE_URL}/reports`,

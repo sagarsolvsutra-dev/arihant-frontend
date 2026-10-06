@@ -186,7 +186,7 @@ export default function ItemsPage() {
           <Button variant="outline" size="sm" onClick={loadRecords} className="px-2.5 hover:bg-gray-50" title="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("items", companyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
+          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("items", companyId!, { search: searchQuery })} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
             Excel
           </Button>
           {canAction("items", "create") && (

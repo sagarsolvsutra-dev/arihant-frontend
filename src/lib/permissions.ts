@@ -32,6 +32,8 @@ export const PERMISSION_MODULES = [
   "salesmen",
   "schemes",
   "openingBills",
+  "bankAccounts",
+  "payments",
 ] as const;
 
 export type PermissionModule = (typeof PERMISSION_MODULES)[number];
@@ -57,6 +59,8 @@ export const MODULE_ACTIONS: Record<PermissionModule, PermissionAction[]> = {
   salesmen: ["view", "create", "edit", "delete"],
   schemes: ["view", "create", "edit", "delete"],
   openingBills: ["view", "create", "edit", "delete"],
+  bankAccounts: ["view", "create", "edit", "delete"],
+  payments: ["view", "create", "edit", "delete"],
 };
 
 export const PERMISSION_LABELS: Record<PermissionModule, string> = {
@@ -79,6 +83,12 @@ export const PERMISSION_LABELS: Record<PermissionModule, string> = {
   salesmen: "Salesmen",
   schemes: "Schemes",
   openingBills: "Opening Bills",
+  bankAccounts: "Bank Accounts",
+  // This single grant also gates Bank Transfer and Expenses (server.js mounts
+  // /api/bank-transfers and /api/expenses under this same "payments" key) —
+  // named to make that scope visible in the Staff permission matrix, not just
+  // the standalone Payments page.
+  payments: "Payment Receiver (+ Bank Transfer, Expenses)",
 };
 
 // UI-only grouping (the backend has no notion of this — it just checks a
@@ -86,7 +96,7 @@ export const PERMISSION_LABELS: Record<PermissionModule, string> = {
 // matrix, mirroring the grouped-by-category reference screenshot the user
 // shared (their example grouped rows under headers like "INVENTORY").
 export const PERMISSION_GROUPS: { label: string; modules: PermissionModule[] }[] = [
-  { label: "Transactions", modules: ["purchase", "sale", "purchaseReturn", "saleReturn", "stockTransfer"] },
+  { label: "Transactions", modules: ["purchase", "sale", "purchaseReturn", "saleReturn", "stockTransfer", "payments"] },
   {
     label: "Masters",
     modules: [
@@ -103,6 +113,7 @@ export const PERMISSION_GROUPS: { label: string; modules: PermissionModule[] }[]
       "salesmen",
       "schemes",
       "openingBills",
+      "bankAccounts",
     ],
   },
   { label: "Reports", modules: ["reports"] },

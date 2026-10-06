@@ -112,8 +112,11 @@ export default function SalesmenPage() {
         name: name.trim(),
         isActive: salesmanActive,
       };
-      if (phone.trim()) payload.phone = phone.trim();
-      if (email.trim()) payload.email = email.trim();
+      // Always include these keys, even as "" — the backend's `!== undefined`
+      // check means omitting a cleared field left it unchanged instead of
+      // actually clearing it.
+      payload.phone = phone.trim();
+      payload.email = email.trim();
 
       if (editingRecord?._id) {
         await salesmanService.updateSalesman(editingRecord._id, payload);
@@ -199,7 +202,7 @@ export default function SalesmenPage() {
           <Button variant="outline" size="sm" onClick={loadRecords} className="px-2.5 hover:bg-gray-50" title="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("salesmen", companyId!)} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
+          <Button variant="outline" size="sm" onClick={() => exportListService.exportList("salesmen", companyId!, { search: searchQuery })} leftIcon={<FileSpreadsheet size={14} />} title="Export to Excel">
             Excel
           </Button>
           {canAction("salesmen", "create") && (
